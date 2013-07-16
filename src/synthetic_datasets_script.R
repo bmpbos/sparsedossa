@@ -603,7 +603,7 @@ iReadDepth,
 dVarScale,
 ### The scaling parameter for the VARIANCE (the noise added will have variance dVarScale*var(bug))
 iNumAssociations,
-### The number of correlation "structures" to introduce
+### The number of correlation "structures" to introduce (ie. the number of bugs which will be correlated with others)
 iMaxNumberCorrDomainBugs,
 ### The maximum number of bugs each of the N correlated bugs can be correlated with; the minimum is 1
 vdMu = NA,
@@ -2109,7 +2109,7 @@ make_option(c("-g","--int_multiplier_range"), type="integer", default=3, help="m
 make_option(c("-d","--int_multiplier_delta"), type="integer", default=1, help="multiplier delta"),
 make_option(c("-r","--collinear_range"), type="integer", default=5, help="collinear range for the spikes"),
 make_option(c("-i","--collinear_increment"), type="integer", default=1, help="collinear delta for the spikes"),
-make_option(c("-b","--bug_to_spike"), type="integer", default=5, help="number of bug-to-bug associations to spike"),
+make_option(c("-b","--bug_to_spike"), type="integer", default=5, help="number of bugs to correlate with others"),
 make_option(c("-a","--variance_scale"), type="double", default = .01, help="Tuning parameter for noise in bug-bug associations"),
 make_option(c("-m","--max_domain_bugs"),type="integer", default=2, help="Maximum number of bugs with which each correlated bug can be associated with (min 1)"),
 make_option(c("-k","--percent_spiked"), type="double", default=.03, help="multiplier delta for the spikes"),
