@@ -88,10 +88,6 @@ c_dZeroIntercept = -0.0518608591994982
 c_dBetaGrandSD = 0.281797820896239
 ### The beta for the relationship between the mu of mus (of feature distributions) and the SD of mus (of feature distributions)
 c_dInterceptGrandSD = 1.82333891862979
-### The minimum SD
-#c_dMinimumSD = .0000001
-### The minimum Mu
-#c_iLowestMu = 1.0
 
 # Tested 1 - Generates RLNorm data set
 funcCreateRLNormSyntheticCalibrationFile = function(
@@ -128,23 +124,17 @@ fVerbose = FALSE
     dFeatureMu = lExpResults[["dBestMu"]]
     dFeatureSD = lExpResults[["dBestSD"]]
 
-    # Add zeros
+    # Generating a tsv file, so features are columns
+    vdFeature[which(is.na(vdFeature))] = rlnorm(c_iNumberSamples-iZeroCount, log(dFeatureMu), log(dFeatureSD))
+    vdDifferences = c(vdDifferences,(mean(vdFeature[which(vdFeature != 0)])-vdExpVector[iFeatureIndex])/vdExpVector[iFeatureIndex])
+
+    # Shuffle counts to make zeros
     if(fZeroInflate)
     {
       dPercentZero = funcEstimatePercentZero(dFeatureMu,c_dBetaZero,c_dZeroIntercept)
       iZeroCount = floor(dPercentZero*length(vdFeature))
       viZeroIndices = sample(1:length(vdFeature), iZeroCount, replace=FALSE)
-      vdFeature[viZeroIndices] = 0
-    }
-
-    # Generating a tsv file, so features are columns
-    vdFeature[which(is.na(vdFeature))] = rlnorm(c_iNumberSamples-iZeroCount, log(dFeatureMu), log(dFeatureSD))
-    vdDifferences = c(vdDifferences,(mean(vdFeature[which(vdFeature != 0)])-vdExpVector[iFeatureIndex])/vdExpVector[iFeatureIndex])
-
-    # Adjust the mean of the feature given the zeros if zero inflation occured
-    if(fZeroInflate)
-    {
-      vdFeature = funcAdjSeqForZeros(vdExpVector[iFeatureIndex],vdFeature)
+      vdFeature = funcAdjSeqForZeros(vdFeature,viZeroIndices)
     }
 
     # Store feature
@@ -172,16 +162,17 @@ fVerbose = FALSE
   write.table(mtrxBugs,sep="\t",file=strWriteFile, col.names=NA, row.names=TRUE)
 }
 
-#funcIdentifyNonZeroOutliers = function(
-#### Returns the indices of outliers in a vector of values
-#vdValues
-#){
-#  tbleSum = summary(vdValues[which(vdValues!=0)])
-#  dThirdQuartile = tbleSum[c_strThirdQuartile]
-#  dFirstQuartile = tbleSum[c_strFirstQuartile]
-#  dMax = (dThirdQuartile-dFirstQuartile)+dThirdQuartile
-#  return(which(vdValues>dMax))
-#}
+funcIdentifyNonZeroOutliers = function(
+### Returns the indices of outliers in a vector of values
+vdValues
+){
+  #!# Should this be logged?
+  tbleSum = summary(vdValues[which(vdValues!=0)])
+  dThirdQuartile = tbleSum[c_strThirdQuartile]
+  dFirstQuartile = tbleSum[c_strFirstQuartile]
+  dMax = (dThirdQuartile-dFirstQuartile)+dThirdQuartile
+  return(which(vdValues>dMax))
+}
 
 # Tested
 funcNormalizeMicrobiome = function(
@@ -294,19 +285,21 @@ dInterceptZero
 
 # Tested
 funcAdjSeqForZeros <- function(
-### Adjust sequence for the added zeros so that the sequence still has the correct expectation
-dMu,
-### Target Mu for the measurements
-dSeq
-### Measurments
+### Adjust sequence by removing counts from the given location to make them zeros
+### and shuffling out the counts to other sequence locations
+vdFeature,
+### The measurements
+viZeros
+### The locations where zeros should occur
 ){
-  if(mean(dSeq)==0)
+  viSignalLocations = setdiff(1:length(vdFeature),viZeros)
+  for(iZeroLocation in viZeros)
   {
-    dSeq = rep(1,length(dSeq))
+    viAddCount = sample(viSignalLocations,floor(vdFeature[iZeroLocation]),replace=TRUE)
+    for(iLocation in viAddCount){ vdFeature[iLocation] = vdFeature[iLocation]+1 }
+    vdFeature[iZeroLocation]=0
   }
-  dAdjSeq = dSeq*(dMu/mean(dSeq))
-  dAdjSeq[which(is.nan(dAdjSeq))] = 0
-  return(dAdjSeq)
+  return(vdFeature)
 }
 
 func_generate_lefse_matrices <- function(
@@ -357,6 +350,8 @@ lxValues
 
 # Tested
 # Will fail if all are integer if using to detect metadata
+# Returns a TRUE (1) for each int value so if
+# the return vector's sum is 0, the data is not numeric
 funcNumericIsInt = function(
 ### Tests to see if a numeric is an interger
 dValue
@@ -393,6 +388,7 @@ vdExpectations,
 fVerbose = FALSE
 ### If pdfs should be made
 ){
+  print("Start funcGenerateExpVectorParameters")
   # Bootstrap the Mu of the expectations and the Mu of the features
   # Do this by randomly selecting a number of features to select
   # Then randomly selecting that number of features from the calibration data set.
@@ -451,6 +447,7 @@ fVerbose = FALSE
     plot(vdPredictedGrandExp,vdBootGrandExp, xlab="Log Estimated", ylab="Log Measured", main="Check difference between measured and estimated expectations")
   }
 
+  print("End funcGenerateExpVectorParameters")
   # Return the SD and Mu which would generate this vector with rlnorm
   # Return the relationship between these
   # Return the original read depth
@@ -478,6 +475,7 @@ fVerbose = FALSE
 ### Flag to turn on logging and pdf creation
 ){
   # Read in file
+  print("Reading file.")
   dfData = read.table(sCalibrationFile)
   row.names(dfData) = dfData[[1]]
   dfData = dfData[-1,-1]
@@ -498,6 +496,7 @@ fVerbose = FALSE
   vdPercentZero = c()
   vdUntransformedExp = c()
 
+  print("Calculating parameters")
   for(iIndex in 1:ncol(dfData))
   {
     # Get the percent zero before removing zeros for other measurements
@@ -712,34 +711,37 @@ int_number_samples,
 dSD
 ### The sd of the distribution (logged)
 ){
-  mtrxData = c()
+  vdData = c()
   for( i in 1:int_number_samples)
   {
     fZeroInflated = sample(c(TRUE,FALSE), size=1, prob=c(dPercentZeroInflated, 1.0-dPercentZeroInflated), replace=TRUE)
     if(fZeroInflated)
     {
-      mtrxData = c(mtrxData,0)
+      vdData = c(vdData,0)
     } else {
       ### MUs and SD coming in should be from a logged rlnorm distribution
-      mtrxData = c(mtrxData,rlnorm(1, dMean, dSD))
+      vdData = c(vdData,rlnorm(1, dMean, dSD))
     }
   }
 
   #Truncate negatives to zero
-  mtrxData[mtrxData<0]=0
+  vdData[vdData<0]=0
 
 #!#TODO should this be removed  # Remove extreme outliers
-#  aiIndices = funcIdentifyNonZeroOutliers(mtrxData)
+#  aiIndices = funcIdentifyNonZeroOutliers(vdData)
 #  while(length(aiIndices)>0)
 #  {
 #    ### Mus and SD coming in should be from a logged rlnorm distribution
-#    mtrxData[aiIndices] = rlnorm(length(aiIndices),dMean,dSD)
-#    aiIndices = funcIdentifyNonZeroOutliers(mtrxData)
+#    vdData[aiIndices] = rlnorm(length(aiIndices),dMean,dSD)
+#    print("vdData")
+#    print(vdData)
+#    aiIndices = funcIdentifyNonZeroOutliers(vdData)
 #  }
-  return(mtrxData)
+  return(vdData)
 }
 
 # Tested 2
+#!# Replace with a numeric function
 funcGetParamsForExpectation <- function(
 ### Searches for the best Mu and SD combination to match the Expectation
 ### for the data set.
@@ -817,6 +819,7 @@ dIncrement = .1
 }
 
 # Tested 2
+#!# Replace with a number function call
 funcGetParamsForReadDepth <- function(
 ### Searches for the best Mu and SD combination to match the ReadDepth
 ### for the data set.
@@ -992,6 +995,7 @@ fVerbose = FALSE
   }
 
   # QC and contraints
+  #!# check min and max?
   # Make sure the percent zero passes the min and max filters
   # Want to make sure there are some zeros but it there are not enough nonzeors, there is not
   # signal to use.
@@ -1038,10 +1042,10 @@ fVerbose
     # Get new feature with no zeros
     vdNewSignal = func_zero_inflate(log(dMu),0,iMinNumberSamples-length(vdSignal),log(dSD))
 
-    # Anything less than the min max the min
+    # Anything less than the min make the min allowed value
     vdNewSignal[which(vdNewSignal<iMinNumberCounts)] = iMinNumberCounts
 
-    # Shuffle the signal
+    # Randomly select nonzero locations to add additional signal to
     vdNewSignalLocations = sample(x=setdiff(1:length(dFeature),vdSignal), length(vdNewSignal), replace=FALSE)
 
     # Replace the feature with these nonzero measurements measurements
@@ -1050,13 +1054,14 @@ fVerbose
 
   # Extra useful measurements, the true and expected means
   dMean = mean(dFeature)
-  dExp = funcGetExp(dMu,dSD)
+  dExpCal = funcGetExp(dMu,dSD)
+  dExp = mean(dMu,dSD)
 
   if(fVerbose)
   {
     plot( dFeature, main = paste("funcMakeFeature","Mean",round(dMean,2),"SD",round(sd(log(dFeature)),2),"Exp",round(dExp,2)))
   }
-  return(list(Feature = dFeature, Mean = dMean, Exp = dExp))
+  return(list(Feature = dFeature, Mean = dMean, Exp = dExp, ExpCal = dExpCal))
 }
 
 func_generate_random_lognormal_matrix <- function(
@@ -1096,6 +1101,7 @@ fVerbose = FALSE
   # Need to set the distributions to the right maginitude, previously in the log form
   lsInitialDistribution$mu = exp(1)^lsInitialDistribution$mu
   lsInitialDistribution$sd = exp(1)^lsInitialDistribution$sd
+  #!# Are the mu and the sd in the right range?
 
   # Update the Mu, SD and Percent zero bugs and report on distributions
   mu_vector = lsInitialDistribution[["mu"]]
@@ -1315,10 +1321,10 @@ dMinLevelPercent
 
   # Check to make sure minimal number of occurences is possible given the number of levels
   # for example, if the min percentage of occurences was originally 60%, it would not be possible to have 60% of samples
-  # in both binary grouping, the make in this case would be 50%, the max for quarternery would be 25%
+  # in both binary grouping, the max in this case would be 50%, the max for quarternery would be 25%
   # In this case the min value will be set to the max number of samples in a level in an even distribution * the percentage
-  # So an original 60% samples for a binary case would be ceiling(60%*(#samples/2)*#samples) and a quarternery case would be
-  # ceiling(60%*(#samples/4)*#samples)
+  # So an original 60% samples for a binary case would be ceiling(60%*(#samples/2)*#samples) and a quarternery case 
+  # would be ceiling(60%*(#samples/4)*#samples)
   iMinLevelBinaryCount = ceiling(int_number_samples*dMinLevelPercent)
   iMinLevelQuarterneryCount = iMinLevelBinaryCount
   if((dMinLevelPercent)>.25)
@@ -1631,9 +1637,14 @@ fZeroInflated = True
   metadata_average <- funcGetRowMean(vdCurMetadata)
   metadata_sigma = funcGetSD(vdCurMetadata)
 
-  # Get the average and SD of the feature (ignoring zeros)
+  # Get the average and SD of the feature (ignoring zeros if zero inflated)
   data_average <- mean(vdCurData[which(vdCurData>0)])
   data_sigma <- sd(vdCurData[which(vdCurData>0)])
+  if(!fZeroInflated)
+  {
+    data_average <- mean(vdCurData)
+    data_sigma <- sd(vdCurData)
+  }
 
   # Feature as occurence (0,1)
   # This is used so that the features with zero keep those measurements at zero
@@ -1675,7 +1686,7 @@ vdCurMetadata,
 fDummyData = TRUE,
 vsFrozeLevels = NULL
 ### Holds the name and level of metadata that is discontinuous
-### Allows one to repeat the selection of the correct level
+### Allows one to force the selection of a specific level
 ){
   # Get the names of the metadata associated with this bug
   # If dummy is occuring this will be written over
@@ -1690,7 +1701,6 @@ vsFrozeLevels = NULL
   # Dummy the data if need be
   if(fDummyData)
   {
-    mtrxdNew = NA
     if(is.null(nrow(vdCurMetadata)))
     {
       vdCurMetadata = matrix(vdCurMetadata,nrow=1)
@@ -1700,12 +1710,19 @@ vsFrozeLevels = NULL
     vstrSpikedMetadata = c()
     for(iRowIndex in 1:nrow(vdCurMetadata))
     {
+      # Get metadata
       vxMetadata = as.vector(vdCurMetadata[iRowIndex,])
-      if(sum(!sapply(vxMetadata,funcNumericIsInt))==0)
+      # If the factor data is not numeric
+      if(!sum(sapply(vxMetadata,funcNumericIsInt))==0)
       {
+        # Get levels of the metadata
         vsLevels = levels(as.factor(vxMetadata))
 
         # Add factor metadata with levels
+        # Select from any level except for the first level
+        # This is because the first level is always the reference level
+        # in comparisons and will never be significant
+        # (the other value compared to it will be).
         strLevel = sample(vsLevels[2:length(vsLevels)],size=1)
         if(length(vsFrozeLevels)>0)
         {
@@ -1713,6 +1730,7 @@ vsFrozeLevels = NULL
         } else {
           vsCurLevels = c(vsCurLevels,strLevel)
         }
+        # Make the selected level 2 and those levels not selected 1
         vxMetadata[which(vxMetadata != strLevel)]=0
         vxMetadata[which(vxMetadata == strLevel)]=2
         vxMetadata[which(vxMetadata == 0)]=1
@@ -1729,6 +1747,7 @@ vsFrozeLevels = NULL
       }
     }
   }
+  # Return which level was dummied
   if(!length(vsFrozeLevels)>0)
   {
     vsFrozeLevels = vsCurLevels
@@ -1871,7 +1890,9 @@ fVerbose = FALSE
   iMinSamples = floor(dMinLevelCountPercent*int_number_samples)
 
   # Creating the truth file which contains true positive spike-ins
-  m_parameter_rec = c(paste(paste(c_strSyntheticMicrobiome, c_strSpike,sep=""), "n", multivariate_parameter,"m",multiplier, sep='_'))
+  strMult = paste(multiplier)
+  strMult = sub(".","_", strMult, fixed=TRUE)
+  m_parameter_rec = c(paste(paste(c_strSyntheticMicrobiome, c_strSpike,sep=""), "n", multivariate_parameter,"m", strMult, sep='_'))
   m_parameter_rec = c(m_parameter_rec, paste(c_strNumberOfFeatures, int_number_features))
   m_parameter_rec = c(m_parameter_rec, paste(c_strNumberOfSamples, int_number_samples))
   m_parameter_rec = c(m_parameter_rec, paste(c_strPercentSpikes, percent_spikes))
@@ -1912,6 +1933,7 @@ fVerbose = FALSE
     # Metadata indices that are selected for spikin
     viSelectedMetadata = c()
 
+    # Find valid spike-in scenario or best choice
     while(fSpikeInFailed)
     {
       # Get the bug to attempt the association
@@ -1960,9 +1982,9 @@ fVerbose = FALSE
       if(fSpikeInFailed)
       {
         # Keep the best failed scenario so far.
-        if(sum(lxQCInfo[["CommonCounts"]]) > lxCurrentBestRun[["Count"]])
+        if(sum(lxQCInfo[["CommonCounts"]]>iMinSamples) > lxCurrentBestRun[["Count"]])
         {
-          lxCurrentBestRun = list(Metadata = vdCurMetadata, MetadataNames = vstrSpikedMetadata, SpikinBug = vdSpikedBug, BugIndex = iIndexSpikedFeature,  Count = sum(lxQCInfo[["CommonCounts"]]), MetadataIndices = viSelectedMetadata, Levels = vsCurFrozeLevels)
+          lxCurrentBestRun = list(Metadata = vdCurMetadata, MetadataNames = vstrSpikedMetadata, SpikinBug = vdSpikedBug, BugIndex = iIndexSpikedFeature,  Count = sum(lxQCInfo[["CommonCounts"]]>iMinSamples), MetadataIndices = viSelectedMetadata, Levels = vsCurFrozeLevels)
         }
         
         # If we have ran out of iteration, use the best failed scenario and indicate this.
@@ -1998,7 +2020,7 @@ fVerbose = FALSE
     }
 
     # Update the truth table with which feature is spiked with which metadata
-    m_parameter_rec = c(m_parameter_rec, paste(c_strFeature,c_strSpike,"n", multivariate_parameter,"m",multiplier,iIndexSpikedFeature,sep='_'))
+    m_parameter_rec = c(m_parameter_rec, paste(c_strFeature,c_strSpike,"n", multivariate_parameter,"m", strMult,iIndexSpikedFeature,sep='_'))
     m_parameter_rec = c(m_parameter_rec, vstrSpikedMetadata)
 
     # Remove bug from pool of potential bugs to spike.
@@ -2020,7 +2042,8 @@ fVerbose = FALSE
       # Color original relationship by bug non zero entries
       vstrRelationship = rep(c_strDefaultMarkerColor,length(vdCurData))
       vstrRelationship[which(vdCurData!=0)] = c_strOutlierColor
-      if(sum(!sapply(vdCurMetadata[i,],funcNumericIsInt))==0)
+
+      if(!sum(sapply(vdCurMetadata[i,],funcNumericIsInt))==0)
       {
         vstrDummyLevel[which(vdCurMetadata[i,]==1)] = c_strDefaultMarkerColor
         vstrRelationship[which(vdCurMetadata[i,]==1)] = c_strDefaultMarkerColor
@@ -2061,11 +2084,11 @@ make_option(c("-f","--number_features"), type="integer", default=300, help="numb
 make_option(c("-n","--number_samples"), type="integer", default=50, help="number of samples"),
 make_option(c("-o","--max_percent_outliers"), type="double", default=.05, help="When an outlier is spiked into a sample, the max percentage of outliers to spike (0.0 =< x =< 1.0)"),
 make_option(c("-t","--percent_outlier_spikins"), type="double", default=.05, help="The percent of samples to spike in outliers (0.0 =< x =< 1.0)"),
-make_option(c("-g","--int_multiplier_range"), type="integer", default=3, help="multiplier range"),
-make_option(c("-d","--int_multiplier_delta"), type="integer", default=1, help="multiplier delta"),
+make_option(c("-g","--int_multiplier_range"), type="double", default=3, help="Maximum value for the multiplier range."),
+make_option(c("-m","--int_min_multiplier_range"), type="double", default=1, help="Minimum value for the multiplier range."),
+make_option(c("-d","--int_multiplier_delta"), type="double", default=1, help="multiplier delta"),
 make_option(c("-r","--collinear_range"), type="integer", default=5, help="collinear range for the spikes"),
 make_option(c("-i","--collinear_increment"), type="integer", default=1, help="collinear delta for the spikes"),
-make_option(c("-b","--bug_to_spike"), type="integer", default=5, help="index of bug to spike"),
 make_option(c("-k","--percent_spiked"), type="double", default=.03, help="multiplier delta for the spikes"),
 make_option(c("-c","--calibrate"), type="character", default=NA, help="Calibration file for generating the random log normal data. TSV file (column = feature)"),
 make_option(c("-l","--minLevelPercent"), type="double", default=.1, help="Minimum number of instances a level can have in discontinuous metadata (Rounded up to the nearest count)."),
@@ -2090,10 +2113,10 @@ dPercentOutliers <- options[['max_percent_outliers']]
 dPercentOutlierSpikins <- options[['percent_outlier_spikins']]
 iReadDepth = options[['read_depth']]
 int_multiplier_range <- options[['int_multiplier_range']]
+int_min_multiplier_range <- options[['int_min_multiplier_range']]
 int_multiplier_delta <- options[['int_multiplier_delta']]
 collinear_range <- options[['collinear_range']]
 collinear_increment <- options[['collinear_increment']]
-bug_to_spike <- options[['bug_to_spike']]
 dPercentMultSpiked <- options[['percent_spiked']]
 strCalibrationFile = options[['calibrate']]
 dMinLevelCountPercent = options[['minLevelPercent']]
@@ -2200,10 +2223,11 @@ for (how_many_multivariates in seq(1,collinear_range,collinear_increment))
   lviMetadata = NULL
   liData = NULL
   lsLevels = NULL
-  for (mult in seq(1,int_multiplier_range, int_multiplier_delta))
+
+  for (mult in seq(int_min_multiplier_range, int_multiplier_range, int_multiplier_delta))
   {
     pdf(file.path(dirname(strCountFileName),paste("SpikeIn_n_", how_many_multivariates,"_m_", mult,".pdf",sep="")))
-    mat_random_lognormal_multivariate_spikes <- func_generate_random_lognormal_with_multivariate_spikes(int_number_features=int_number_features, int_number_samples=int_number_samples, iMinNumberCounts=dMinOccurenceCount, iMinNumberSamples=dMinOccurenceSample, percent_spikes=dPercentMultSpiked, multiplier=mult, metadata_matrix=mat_metadata, multivariate_parameter=how_many_multivariates, dMinLevelCountPercent=dMinLevelCountPercent, mtrxBugs=mat_random_lognormal_bugs[["mat_bugs"]],fZeroInflated=fZeroInflate, lviFrozeMetadataIndices=lviMetadata, liFrozeDataIndicies=liData, lsFrozeLevels=lsLevels)
+    mat_random_lognormal_multivariate_spikes <- func_generate_random_lognormal_with_multivariate_spikes(int_number_features=int_number_features, int_number_samples=int_number_samples, iMinNumberCounts=dMinOccurenceCount, iMinNumberSamples=dMinOccurenceSample, percent_spikes=dPercentMultSpiked, multiplier=mult, metadata_matrix=mat_metadata, multivariate_parameter=how_many_multivariates, dMinLevelCountPercent=dMinLevelCountPercent, mtrxBugs=mat_random_lognormal_bugs[["mat_bugs"]],fZeroInflated=fZeroInflate, lviFrozeMetadataIndices=lviMetadata, liFrozeDataIndicies=liData, lsFrozeLevels=lsLevels, fVerbose=fVerbose)
     mat_random_lognormal_multivariate_spikes_bugs <- mat_random_lognormal_multivariate_spikes[["mat_bugs"]]
     lviMetadata <- mat_random_lognormal_multivariate_spikes[["MetadataIndices"]]
     liData <- mat_random_lognormal_multivariate_spikes[["DataIndices"]]
@@ -2215,7 +2239,7 @@ for (how_many_multivariates in seq(1,collinear_range,collinear_increment))
     # generate known associations for random lognormal with spikes
     vParametersAssociations = c(vParametersAssociations,mat_random_lognormal_multivariate_spikes[["m_parameter_rec"]])
     list_of_bugs[[length(list_of_bugs)+1]] <- mat_random_lognormal_multivariate_spikes_bugs
-    lsMicrobiomeKeys[[length(lsMicrobiomeKeys)+1]] = paste(c_strSpike,"n",how_many_multivariates,"m",mult, sep="_")
+    lsMicrobiomeKeys[[length(lsMicrobiomeKeys)+1]] = paste(c_strSpike,"n",how_many_multivariates,"m",sub(".","_",paste(mult),fixed=TRUE), sep="_")
 
     hist(as.vector(mat_random_lognormal_multivariate_spikes_bugs), main=paste("Final: Spiked matrix n_", how_many_multivariates,"_m_", mult,sep=""))
     dev.off()
