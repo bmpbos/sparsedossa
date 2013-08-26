@@ -606,7 +606,7 @@ fVerbose = FALSE
                                        dInterceptZero = dInterceptZero,
                                        dBetaGrandSD = dBetaGrandSD,
                                        dInterceptGrandSD = dInterceptGrandSD,
-                                       verbose = fVerbose)
+                                       fVerbose = fVerbose)
 
   # This gets a lognormal distribution, you can do this with a predefined mu vector if needed.
   # After this step you should add the bug spike-ins
@@ -2526,10 +2526,10 @@ for (how_many_multivariates in seq(1,collinear_range,collinear_increment))
 }
 
 # Add bug associated bug microbiome
-#lsBugBugInfo = func_generate_bug_bug_spiking_matrix(int_number_features=int_number_features, int_number_samples=int_number_samples, iMinNumberSamples=dMinOccurenceSample, iReadDepth=iReadDepth, iMinNumberCounts=dMinOccurenceCount, vdExp=vdExp, vdMu=vdMu, vdSD=vdSD, dPercentZero=vdPercentZero, fZeroInflate=fZeroInflate, dBetaSD=dSDBeta, dSDIntercept=dSDIntercept, dBetaZero=dBetaZero, fVerbose=fVerbose, dVarScale=dVarScale,iNumAssociations=iNumAssociations,iMaxNumberCorrDomainBugs=iMaxNumberCorrDomainBugs)
-#list_of_bugs[[length(list_of_bugs)+1]] = lsBugBugInfo[["mtrxBugs"]]
-#vParametersAssociations = c(vParametersAssociations,lsBugBugInfo[["vStrParameters"]])
-#lsMicrobiomeKeys[[length(lsMicrobiomeKeys)+1]] = c_strBugBugAssocations
+lsBugBugInfo = func_generate_bug_bug_spiking_matrix(int_number_features=int_number_features, int_number_samples=int_number_samples, iMinNumberSamples=dMinOccurenceSample, iReadDepth=iReadDepth, iMinNumberCounts=dMinOccurenceCount, vdExp=vdExp, vdMu=vdMu, vdSD=vdSD, dPercentZero=vdPercentZero, fZeroInflate=fZeroInflate, dBetaSD=dSDBeta, dSDIntercept=dSDIntercept, dBetaZero=dBetaZero, fVerbose=fVerbose, dVarScale=dVarScale,iNumAssociations=iNumAssociations,iMaxNumberCorrDomainBugs=iMaxNumberCorrDomainBugs)
+list_of_bugs[[length(list_of_bugs)+1]] = lsBugBugInfo[["mtrxBugs"]]
+vParametersAssociations = c(vParametersAssociations,lsBugBugInfo[["vStrParameters"]])
+lsMicrobiomeKeys[[length(lsMicrobiomeKeys)+1]] = c_strBugBugAssocations
 
 # preallocate final pcl  matrix
 final_matrix <- matrix(data=NA,nrow=(number_metadata+int_number_features*length(list_of_bugs))+1, ncol=(int_number_samples+1))
