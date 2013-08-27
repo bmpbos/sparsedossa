@@ -74,6 +74,7 @@ c_strNoiseScaling          = "Scaling parameter for variance of noise:"
 
 c_dfFreezeSDFeatures = FALSE
 c_dfFreezeSDGrandMu = FALSE
+c_fPrintLognormalMatrix = FALSE
 
 # These variables are associated with settings for
 # Calculating the SD and percent Zero based on the mu.
@@ -96,9 +97,9 @@ c_dGrandMu = 3.22147794061485 # 1.0624445524326
 # The SD of the mus of all the bug distributions
 c_dGrandSD = 1.54199045556315 # 2.53216541658158
 ### The beta for the relationship between the mu of mus (of feature distributions) and the SD of mus (of feature distributions)
-c_dBetaGrandSD = 0.41170246884003 # 0.340405363593001 # 0.3269432 # 0.281797820896239
+c_dBetaGrandSD = 0.340405363593001 # 0.3269432 # 0.281797820896239
 ### The beta for the relationship between the mu of mus (of feature distributions) and the SD of mus (of feature distributions)
-c_dInterceptGrandSD = -0.124016960294123 # 0.114551681657842 # 1.711547 # 1.82333891862979
+c_dInterceptGrandSD = 0.114551681657842 # 1.711547 # 1.82333891862979
 ### The max count for an entry
 #c_dMaxCount = 6135
 
@@ -281,8 +282,11 @@ fVerbose = FALSE
     dBetaZero = coef(lmod)["vdExpLog"]
     dInterceptZero = coef(lmod)["(Intercept)"]
 
-#    # Using nonlinear fit and giving the linear fit as the first choice.
+    # Using nonlinear fit and giving the linear fit as the first choice.
 #    modNLS = nls(vdPercentZero ~ vdExpLog*dBetaZZ+dBetaInter,start=list(dBetaZZ=dBetaZero,dBetaInter=dInterceptZero))
+#    print("modNLS")
+#    print(modNLS)
+#    print(coef(summary(modNLS)))
 #    dBetaZero = coef(summary(modNLS))["dBetaZZ.vdExpLog","Estimate"]
 #    dInterceptZero = coef(summary(modNLS))["dBetaInter.(Intercept)","Estimate"]
   }
@@ -1074,10 +1078,10 @@ fVerbose = FALSE
   mat_bugs = funcShuffleMatrix(mtrxData=mat_bugs, vdFeatureMus=vdMu, vdShuffleIn=vdLeftOver)
 
   # Floor to Counts
-  mat_bugs = floor(mat_bugs)
-  if(c_dfFreezeSDGrandMu ||c_dfFreezeSDFeatures)
+  mat_bugs = round(mat_bugs)
+  if(c_dfFreezeSDGrandMu ||c_dfFreezeSDFeatures||c_fPrintLognormalMatrix)
   {
-#    print(mat_bugs)
+    print(mat_bugs)
     print("Read Depth")
     print(colSums(mat_bugs))
     print(mean(colSums(mat_bugs)))
@@ -1090,8 +1094,12 @@ fVerbose = FALSE
     print(summary(funcGetRowMetric(mat_bugs,mean)))
   }
 
-  ## Plot
-  dActualSampleAverage = colSums(mat_bugs)
+  if(fVerbose)
+  {
+    ## Plot
+    plot(colSums(mat_bugs),main=paste("Read depth mean=",mean(colSums)), xlab="Samples")
+    abline(mean(colSums(mat_bugs)),0)
+  }
 
   # Truth table for log normal data
   mtrxParameters <- matrix(data=NA, nrow=6, ncol=1)
@@ -1395,6 +1403,7 @@ fVerbose = FALSE
 
         # Check to see if a failure occured
         lxQCInfo = funcQCSpikin(vdCurMetadata, vdSpikedBug, iMinSamples)
+
         # lxQCInfo has the slots PASS = Boolean, CommonCounts = vector of integers
         fSpikeInFailed = !lxQCInfo[["PASS"]]
 
@@ -1427,6 +1436,8 @@ fVerbose = FALSE
             # Break while to use the best case scenario
             break
           }
+        } else {
+          lxCurrentBestRun = list(Metadata = vdCurMetadata, MetadataNames = vstrSpikedMetadata, SpikinBug = vdSpikedBug, BugIndex = iIndexSpikedFeature,  Count = sum(lxQCInfo[["CommonCounts"]]>iMinSamples), MetadataIndices = viSelectedMetadata, Levels = vsCurFrozeLevels)
         }
       }
 
@@ -2016,6 +2027,7 @@ vdShuffleIn
   print("Start funcShuffleMatrix")
   # Add back in left over counts
   vdFeatureMeans = funcGetRowMetric(mtrxData,mean)
+#  vdFeatureMusPercent = vdFeatureMus/sum(vdFeatureMus)
   # Make left over an int
   viLeftOver = floor(vdShuffleIn)
   # Number of samples
@@ -2054,11 +2066,11 @@ vdShuffleIn
           iShuffleTo = setdiff(1:length(vdDifference), viSampleZeros)
           if(length(iShuffleTo)>1)
           {
-            iShuffleTo = sample(iShuffleTo,1)
+            iShuffleTo = sample(x=iShuffleTo, size=1)
           }
         } else {
           iShuffleTo = which(vdDifference == dMax)
-          if(length(iShuffleTo)>1){iShuffleTo = sample(iShuffleTo,1)}
+          if(length(iShuffleTo)>1){iShuffleTo = sample(x=iShuffleTo, size=1)}
         }
 
         # Update the data and the means
