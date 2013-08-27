@@ -1039,6 +1039,7 @@ fVerbose = FALSE
   vdMu = lsInitialDistribution[["mu"]]
   vdSD = lsInitialDistribution[["sd"]]
   xPercentZero = lsInitialDistribution[["PercentZero"]]
+  vdExp = lsInitialDistribution[["exp"]]
 
   # TODO remove
   if(c_dfFreezeSDFeatures)
@@ -2357,7 +2358,7 @@ if( (dPercentOutliers>1) | (dPercentOutliers<0) ) stop("Please provide a percent
 dPercentOutlierSpikins <- options[['percent_outlier_spikins']]
 if( (dPercentOutlierSpikins>1) | (dPercentOutlierSpikins<0) ) stop("Please provide a percent spikins in the range of 0 to 1")
 iReadDepth = options[['read_depth']]
-if(iReadDepth <1) stop("Please provide a read depth greater of atleast 1")
+if(iReadDepth < max(int_number_features, int_number_samples)) stop("Please provide a read depth of atleast equal to feature size or sample size (which ever is larger)")
 int_max_multiplier_range <- options[['int_max_multiplier_range']]
 int_min_multiplier_range <- options[['int_min_multiplier_range']]
 int_multiplier_delta <- abs(options[['int_multiplier_delta']])
