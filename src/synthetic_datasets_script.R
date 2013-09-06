@@ -19,25 +19,32 @@ library(optparse)
 library(getopt)
 library(MASS)
 
-iLoopingControlIncrement = 1000
-c_iCountTypesOfMetadata = 4
-# Simulates an occurence filter
+# Plot constants
 c_strDefaultMarkerColor = "black"
 c_strOutlierColor = "red"
 c_strFeatureOutlier = "cyan"
+
+# Control flow constants
+iLoopingControlIncrement = 1000
+### Max number of looping in looping functions
+c_iCountTypesOfMetadata = 4
+### There are 4 types of metadata supported in metadata generation
 c_fIgnoreZerosInOutliers = TRUE
 ### Will not allow zeros to be used as the min value in swapping unless they are needed to fulfill the number of
 ### swaps (if there are a whole bunch of zeros, some zeros may be needed or no swapping can be performed).
 c_fDummyFactorData = TRUE
 ### For Factor data only, selects a level and sets all of that level to 1 and others to 0
-c_fRarify = FALSE
-### Rarifies the samples to the min sample count
+c_dRunifMin = .01
+c_dRunifMax = .99
 ### Binary and quarternary metadata are draw from uniform distributions, these are the bounds
-c_dRunifMin = .4
-c_dRunifMax = .5
+c_dMinBinary = .3
+c_dMaxBinary = .7
+### Min and max probabilities for binary metadata levels
 c_iTimesSDIsOutlier = 4
+### The number of deviations until a value is truncated as an outlier
+c_dALittleMoreThanZero = 0.00001
 
-#Constants
+# Labeling Constants
 c_strLevel = "Level"
 c_strFeature = "Feature"
 c_strMetadata = "Metadata"
@@ -62,127 +69,109 @@ c_strSampleParameter = "Sample:"
 c_strContinuous = "Continuous"
 c_strFactor = "Factor Levels"
 c_strMetadataDetails = "Metadata: Details"
-c_strFirstQuartile = "1st Qu."
-c_strThirdQuartile = "3rd Qu."
-### For Bug-bug spikin matrix (in alphabetical order)
-c_strCorrDomainBugs        = "Number of bugs each correlated bug is correlated with:"
-c_strCorrDomainBugsIdx     = "Indices of the bugs each correlated bug is correlated with:"
-c_strCorrRangeBugsIdx      = "Indices of bugs correlated with others:"
-c_strMaxCorrDomainBugs     = "Maximum number of bugs with which one bug is correlated:"
-c_strNumberOfAssociations  = "Number of associations (bugs correlated with others):"
-c_strNoiseScaling          = "Scaling parameter for variance of noise:"
 
+### For Bug-bug spikin matrix (in alphabetical order)
+c_strCorrDomainBugs = "Number of bugs each correlated bug is correlated with:"
+c_strCorrDomainBugsIdx ="Indices of the bugs each correlated bug is correlated with:"
+c_strCorrRangeBugsIdx = "Indices of bugs correlated with others:"
+c_strMaxCorrDomainBugs = "Maximum number of bugs with which one bug is correlated:"
+c_strNumberOfAssociations = "Number of associations (bugs correlated with others):"
+c_strNoiseScaling  = "Scaling parameter for variance of noise:"
+
+# Temporary control flags
 c_dfFreezeSDFeatures = FALSE
 c_dfFreezeSDGrandMu = FALSE
-c_fPrintLognormalMatrix = FALSE
+c_fPrintLognormalMatrix = TRUE
 
+# Define the relatioship between different feature properties
 # These variables are associated with settings for
-# Calculating the SD and percent Zero based on the mu.
+# Calculating the SD and percent Zero based on the mu or expectation.
 # The constants for these variables have been estimated from
 # a real (IBD) data set. These constants are used unless a
 # calibration file is given which estimates the values in the
 # same manner as the constants were estimated.
-# The beta for fitting
-strBeta = "Beta"
-# The beta estimate for the relationship between SD and mu
-c_dSDBeta = 0.242678502955986 # 0.634072110412161
-# The intecept estimate for the relationship between SD and mu
-c_dSDIntercept = 0.47218171616232 # 0.777602075408279
-# Beta for the relationship between mu and zero percent
-c_dBetaZero = -0.119637999937095 # -0.0127906473815179
-# Zero intercept
-c_dZeroIntercept = 1.14933522828954 # -0.0518608591994982
-# The grand mu of the mus of all the bug distributions
-c_dGrandMu = 3.22147794061485 # 1.0624445524326
-# The SD of the mus of all the bug distributions
-c_dGrandSD = 1.54199045556315 # 2.53216541658158
-### The beta for the relationship between the mu of mus (of feature distributions) and the SD of mus (of feature distributions)
-c_dBetaGrandSD = 0.340405363593001 # 0.3269432 # 0.281797820896239
-### The beta for the relationship between the mu of mus (of feature distributions) and the SD of mus (of feature distributions)
-c_dInterceptGrandSD = 0.114551681657842 # 1.711547 # 1.82333891862979
-### The max count for an entry
-#c_dMaxCount = 6135
+c_dSDBeta = 0.242678502955986
+### The estimate for the relationship between SD and exp
+c_dBetaZero = -0.09194 # -0.119637999937095 # .86160
+### The extimate for the relationship between exp and zero percent
+c_dBetaGrandSD = 0.01699164
+### The estimate for the relationship between the mu of mus (of feature distributions) and the SD of mus (of feature distributions)
 
 ################### Methods
 
+
+# Plotting function. Not in regression suite
 funcBoxPlotOutliers = function(
 ### Generic plotter for a series of boxplots.
 mtrxData,
+### Matrix of values
 strTitle,
+### Title for the plot
 lviHighlight = list(),
+### Optional. Points to highlight, list of vectors of indices. Each entry is to be highlighted, each list vector is a sample. Default no highlighting.
 strColor = "red",
+### Optional. Highlighting color. Default "red".
 fWithZeros = TRUE,
+### Optional. Plot with zeros. Default TRUE.
 fBySamples = TRUE
-### Samples are expected to be columns
+### Optional. Indicates if the matrix columns are samples. By default (TRUE) samples are expected as columns. One can give FALSE if they want the matrix transposed.
 ){
-  strXLabel="Samples"
-  if(!fBySamples)
-  {
+  strXLabel = "Samples"
+  if( !fBySamples ){
     strXLabel = "Features"
     mtrxData = t(mtrxData)
   }
-  if(fWithZeros)
-  {
-    boxplot(mtrxData, main=paste(strTitle," - With Zeros - By ",strXLabel, sep=""), xlab = strXLabel, ylab="Distribution of Counts")
+  if( fWithZeros ){
+    boxplot( mtrxData, main = paste( strTitle, " - With Zeros - By ", strXLabel, sep = "" ), xlab = strXLabel, ylab = "Distribution of Counts" )
     lvdData = list()
     viPosition = c()
-    for(iCol in 1:ncol(mtrxData))
-    {
-      lvdData[[length(lvdData)+1]] = mtrxData[,iCol]
-      viPosition = c(viPosition,length(lvdData))
-      lstrColoring = rep(c_strDefaultMarkerColor,length(mtrxData[,iCol]))
+    for( iCol in 1:ncol( mtrxData ) ){
+      lvdData[[length( lvdData )+1]] = mtrxData[, iCol]
+      viPosition = c( viPosition, length( lvdData ) )
+      lstrColoring = rep( c_strDefaultMarkerColor, length( mtrxData[,iCol] ) )
 
-      if(!is.null(lviHighlight[iCol][[1]]))
-      {
+      if( !is.null( lviHighlight[iCol][[1]] ) ){
         lstrColoring[lviHighlight[[iCol]]] = strColor
       }
 
       # Highlight for the different levels (highlight and not)
-      for(strLevel in levels(as.factor(lstrColoring)))
-      {
-        stripchart(mtrxData[,iCol][which(lstrColoring==strLevel)],at=iCol,add=TRUE,vertical=TRUE,method="jitter",jitter=0.3,col=strLevel)
+      for(strLevel in levels( as.factor( lstrColoring ) ) ){
+        stripchart( mtrxData[, iCol][which( lstrColoring == strLevel )], at = iCol, add = TRUE, vertical = TRUE, method = "jitter", jitter = 0.3, col = strLevel )
       }
     }
  } else {
     liNoZeros = list()
-    for(iColumn in 1:ncol(mtrxData))
-    {
-      viNotZeros = which(mtrxData[,iColumn]!=0)
-      liNoZeros[[length(liNoZeros)+1]] = mtrxData[,iColumn][viNotZeros]
+    for( iColumn in 1:ncol( mtrxData ) ){
+      viNotZeros = which( mtrxData[, iColumn] != 0 )
+      liNoZeros[[length( liNoZeros ) + 1]] = mtrxData[, iColumn][viNotZeros]
 
-      fTrimHighlights = !is.null(lviHighlight[iColumn][[1]])
+      fTrimHighlights = !is.null( lviHighlight[iColumn][[1]] )
       # Trim down colors to the same indices as non zeros
-      if(fTrimHighlights)
-      {
-        lviHighlight[[iColumn]] = intersect(lviHighlight[[iColumn]],viNotZeros)
+      if( fTrimHighlights ){
+        lviHighlight[[iColumn]] = intersect( lviHighlight[[iColumn]], viNotZeros )
         # Shift the indices down to account for removing zeros
         viShiftedIndices = c()
-        for(iIndex in lviHighlight[[iColumn]])
-        {
-          viShiftedIndices = c(viShiftedIndices,1+length(which(viNotZeros<iIndex)))
+        for( iIndex in lviHighlight[[iColumn]] ){
+          viShiftedIndices = c( viShiftedIndices, 1 + length( which( viNotZeros < iIndex ) ) )
         }
-        if(is.null(viShiftedIndices))
-        {
+        if( is.null( viShiftedIndices ) ){
           lviHighlight[[iColumn]][1] = NULL
         } else {
           lviHighlight[[iColumn]] = viShiftedIndices
         }
       }
     }
-    boxplot(liNoZeros, main=paste(strTitle," - Without Zeros - By ", strXLabel, sep=""), xlab = strXLabel, ylab="Distribution of Counts")
-    for(iColumn in 1:ncol(mtrxData))
-    {
-      liNoZeros[[length(liNoZeros)+1]] = mtrxData[,iColumn][which(mtrxData[,iColumn]!=0)]
-      lstrColoring = rep(c_strDefaultMarkerColor,length(mtrxData[,iColumn]))
-      if(!is.null(lviHighlight[iColumn][[1]]))
-      {
+    boxplot( liNoZeros, main = paste( strTitle, " - Without Zeros - By ", strXLabel, sep = ""), xlab = strXLabel, ylab = "Distribution of Counts" )
+    for( iColumn in 1:ncol( mtrxData ) ){
+      liNoZeros[[length( liNoZeros ) + 1]] = mtrxData[, iColumn][which( mtrxData[, iColumn] != 0 )]
+      lstrColoring = rep( c_strDefaultMarkerColor, length( mtrxData[, iColumn] ) )
+      if( !is.null( lviHighlight[iColumn][[1]] ) ){
         lstrColoring[lviHighlight[[iColumn]]] = strColor
       }
 
       # Highlight for the different levels (highlight and not)
-      for(strLevel in levels(as.factor(lstrColoring)))
-      {
-        stripchart(liNoZeros[[iColumn]][which(lstrColoring==strLevel)],at=iColumn,add=TRUE,vertical=TRUE,method="jitter",jitter=0.3,col=strLevel)
+      for( strLevel in levels( as.factor( lstrColoring ) ) ){
+        stripchart( liNoZeros[[iColumn]][which( lstrColoring == strLevel )], at = iColumn, add = TRUE, vertical = TRUE, method = "jitter", jitter = 0.3, col = strLevel )
       }
     }
   }
@@ -190,7 +179,7 @@ fBySamples = TRUE
 
 
 # Reviewed but not tested.
-funcCalibrateRLNormToMicrobiome <- function(
+funcCalibrateRLNormToMicrobiome = function(
 ### Given a TSV file
 ### Parameters for distribution generatio are given
 ### To be used in matrix generation
@@ -200,8 +189,6 @@ funcCalibrateRLNormToMicrobiome <- function(
 ### Percent zeros
 ### The beta for estimating the SD given the mu
 ### The beta for estimating the percent zero given the mu
-### The intercept for estimating the SD given the mu
-### The intercept for esitmating the percent zero given the mu
 ### All Mus, SD, grand MU, and grand SD are ready for rlnorm (have been measured from a logged (rlnorm)
 sCalibrationFile,
 ### File to be read in and used to calibrate constansts and relationships in the underlying data.
@@ -231,7 +218,7 @@ fVerbose = FALSE
   # Mean of the logged nonzero data
   vdMu = c()
   # Standard deviation of the logged nonzero data
-  vdSD = c()
+  vdLogSD = c()
   # Percent zeros in data
   vdPercentZero = c()
 
@@ -243,8 +230,9 @@ fVerbose = FALSE
     vdPercentZero = c(vdPercentZero, length(which(vdCur==0))/length(vdCur))
 
     # Remove zeros from data
-    vdCur = vdCur[which(vdCur!=0)]
     vdExp = c(vdExp,mean(vdCur))
+    vdCur = vdCur[which(vdCur!=0)]
+#    vdExp = c(vdExp,mean(vdCur))
     
     #### Note
     #### rlnorm needs a mean and sd from a logged rlnorm distribution which would match this
@@ -253,8 +241,9 @@ fVerbose = FALSE
 
     # Log nonzero data
     vdLogCur = log(vdCur)
-    vdSD = c(vdSD, sd(vdLogCur))
-    vdMu = c(vdMu, mean(vdLogCur))
+    vdLogSD = c(vdLogSD, sd(vdLogCur))
+#    vdMu = c(vdMu, mean(vdLogCur))
+    vdMu = c( vdMu, funcGetMu( vdExp[iIndex], exp(sd( vdLogCur ) ) ) )
   }
 
   # Estimate the distribution parameters from the expectation vector
@@ -262,33 +251,33 @@ fVerbose = FALSE
   # The grand mu, grand expectation (logged) and the grand sd
   lParams = funcGenerateExpVectorParameters(vdExp,TRUE)
 
-  ##### Get relationship between SD and Exp
+  ##### Get relationship between logSD and log(Exp)
   # Log to make a linear relationship
+  # This is both values logged as SD is based on vdLogCur
   vdExpLog = log(vdExp)
 
-  lmod = lm(as.formula(paste("vdSD","vdExpLog",sep="~")))
+  lmod = lm(as.formula(paste("vdLogSD","vdExpLog",sep="~")))
   dBetaSD = coef(lmod)["vdExpLog"]
-  dInterceptSD = coef(lmod)["(Intercept)"]
 
   #### Percent Zero and Exp
   ### When using NLS, first supply with a guess (took from a lm)
   ### Then take the LM guess and do the NLS
   dBetaZero = NA
-  dInterceptZero = NA
   if(sum(vdPercentZero)>0)
   {
     # Make a first guess
     lmod = lm(vdPercentZero ~ vdExpLog)
     dBetaZero = coef(lmod)["vdExpLog"]
-    dInterceptZero = coef(lmod)["(Intercept)"]
+
+    print("lmod")
+    print(lmod)
 
     # Using nonlinear fit and giving the linear fit as the first choice.
-#    modNLS = nls(vdPercentZero ~ vdExpLog*dBetaZZ+dBetaInter,start=list(dBetaZZ=dBetaZero,dBetaInter=dInterceptZero))
+#    modNLS = nls(vdPercentZero ~ vdExpLog*dBetaZZ+dBetaInter,start=list(dBetaZZ=dBetaZero))
 #    print("modNLS")
 #    print(modNLS)
 #    print(coef(summary(modNLS)))
 #    dBetaZero = coef(summary(modNLS))["dBetaZZ.vdExpLog","Estimate"]
-#    dInterceptZero = coef(summary(modNLS))["dBetaInter.(Intercept)","Estimate"]
   }
 
   if(fVerbose)
@@ -301,97 +290,95 @@ fVerbose = FALSE
     plot(as.numeric(as.vector(as.matrix(dfData))), main="Distribution of Template Microbiome")
 
     # Get relationship between SD and MU
-    plot(vdExp, vdSD, main="Estimating SD with Exp: baseline")
-    points(x=vdExp,y=funcEstimateFeatureSD(vdExpLog,dBetaSD,dInterceptSD),col="orange")
-    plot(vdExpLog, vdSD, main="Estimating SD with Log Exp: predicted points")
-    points(x=vdExpLog,y=funcEstimateFeatureSD(vdExpLog,dBetaSD,dInterceptSD),col="green")
+    plot(vdExp, vdLogSD, main="Estimating SD with Exp: baseline")
+    points(x=vdExp,y=funcEstimateFeatureSD(vdExpLog,dBetaSD),col="orange")
+    plot(vdExpLog, vdLogSD, main="Estimating SD with Log Exp: predicted points")
+    points(x=vdExpLog,y=funcEstimateFeatureSD(vdExpLog,dBetaSD),col="green")
 
     # Percent zero #!#
     plot(vdExp, vdPercentZero, main="Estimating Percent Zero: Original baseline relationship 1")
-    points(x=vdExp,y=funcEstimatePercentZero(vdExpLog,dBetaZero,dInterceptZero),col="violet")
+    points(x=vdExp,y=funcEstimatePercentZero(vdExpLog,dBetaZero),col="violet")
     plot(vdExpLog, vdPercentZero, main="Estimating Zero with Exp: NLS predicted points 1")
-    points(x=vdExpLog,y=funcEstimatePercentZero(vdExpLog,dBetaZero,dInterceptZero),col="violet")
+    points(x=vdExpLog,y=funcEstimatePercentZero(vdExpLog,dBetaZero),col="violet")
   }
 
   print("stop funcCalibrateRLNormToMicrobiome")
 
-  # Return
-  # When returning the grand Mu remember that you are returning the Mu that gives the expectation for the Mus
-  # given the rlnorm function so this is different than the mus measured in the logged distribution (rlnorm)
-  return(list(exp=vdExp, mu=exp(vdMu), sd=exp(vdSD), dSDBeta=dBetaSD, dSDIntercept=dInterceptSD, percentZero=vdPercentZero,
-              dZeroBeta=dBetaZero, dZeroIntercept=dInterceptZero, dGrandMu=lParams$GrandMu,
-              dGrandSD=lParams$GrandSD, dGrandBeta=lParams$GrandSDBeta, dGrandIntercept=lParams$GrandSDIntercept,
+  return(list(exp=vdExp, mu=vdMu, sd=exp(vdLogSD), dSDBeta=dBetaSD, percentZero=vdPercentZero,
+              dZeroBeta=dBetaZero, dGrandBeta=lParams$GrandLogSDBeta,
               dAverageReadDepth=mean(ldReadDepths), iFeatureCount=ncol(dfData)))
+
+### When returning the grand Mu remember that you are returning the Mu that gives the expectation for the Mus
+### given the rlnorm function so this is different than the mus measured in the logged distribution (rlnorm)
+### exp: Not Logged expectation of distribution ( mean(x) )
+### mu: The exponentiated logMu
+### sd: The exponentiated logSD
+### dSDBeta: Relationship between logSD and log(mean(x))
+### percentZero: Percent of values which are zero
+### dZeroBeta: Relationship between percent zero and log(mean(x))
+### dGrandBeta: Relationship between the logSD and Exp
+### dAverageReadDepth: The average read depth per samples
+### iFeatureCount: The number of features measured
 }
 
 
-funcCycleVectorIndexes <- function(
-### Modified modulus function that returns indexes to use to cycle through a
+# 5 Tests 9/4/2013
+funcCycleVectorIndices = function(
+### Modified modulus function that returns iElementsToPick  number of indices to use to cycle through a
 ### vector of data a certain amount of times. Allows a vector to acts like 
-### a list with ends linked together.
+### a list of length iVectorLength with ends linked together.
 iElementsToPick,
-iVectorLength)
-{
+### The number of indices or elements needed
+iVectorLength
+### The total number of the vector being cycled over. Will often be shorter than the iElementsToPick.
+){
   viReturn = c()
-  for( iElements in 1:iElementsToPick)
-  {
-    viReturn = c(viReturn, (iElements%% iVectorLength))
+  for( iElements in 1:iElementsToPick ){
+    viReturn = c( viReturn, ( iElements %% iVectorLength ) )
   }
-  viReturn[viReturn==0]=iVectorLength
-  return(viReturn)
+  viReturn[viReturn == 0] = iVectorLength
+  return( viReturn )
 }
 
 
-funcEstimateFeatureSD<-function(
+# 5 Tests 9/4/2013
+funcEstimateFeatureSD=function(
 ### Estimate the SD given the Log Exp and parameters modeling the relationship between the Log Exp and the SD
 vdExpLog,
 ### The measured mean of feature values
-dBetaSD,
+dBetaSD
 ### The beta for the relationship between the mu and the SD
-dSDIntercept
-### The intercept for the relationship between the mu and the SD
 ){
-  return(( vdExpLog * dBetaSD) + dSDIntercept)
+  return(vdExpLog * dBetaSD)
+  ### Returns the LogSD for a feature
 }
 
 
-funcEstimateGrandSD<-function(
+# 5 Tests 9/4/2013
+funcEstimateGrandSD=function(
 ### Estimate the grand SD given the grand Mu and parameters modeling the relationship between the grand mu and grand sd
-dMu,
-dBetaGrandSD,
-dInterceptGrandSD
+dExp,
+dBetaGrandSD
 ){
-  return(( dMu * dBetaGrandSD ) + dInterceptGrandSD)
+  return(dExp * dBetaGrandSD)
+  ### Returns the LogSD for the expecation vector
 }
 
 
-#funcEstimateOutliers <- function(
-#### Estimate the max value using the mu
-#dMu,
-#dBetaOutlier,
-#dInterceptOutlier
-#){
-#  return(( dMu * dBetaOutlier ) + dInterceptOutlier )
-#}
-
-
-funcEstimatePercentZero <- function(
+# 5 Tests 9/4/2013
+funcEstimatePercentZero = function(
 ### Estimate the percent zero given the logged expectation and parameters modeling the relationship between the log Exp and the percent zero
 vdExpLog,
-dBetaZero,
-dInterceptZero
+### The measured mean of feature values
+dBetaZero
 ){
-  return(( vdExpLog * dBetaZero ) + dInterceptZero)
+  return((vdExpLog * dBetaZero)+.70)
 }
 
-#!# TODO fix for exp correction
-# Reviewed but not tested
-funcGenerateExpVectorParameters <- function(
-### Need several pieces of data to generate the expectation vector
-### Need the SD and the Mu that will generate the vector using rlnorm
-### Need to make sure that this reasonably models the original distribution
-### Need to make sure the vectors of mus generated from the measured parameters
-### create a distribution that maintains the read depth (sum of the original expectations or the generated values)
+
+# 2 Tests 9/4/2013
+funcGenerateExpVectorParameters = function(
+### Get the point estimate for the relationship between the mu and sd
 vdExpectations,
 ### These are the mus of each of the features from the calibration file.
 ### These are untransformed (not logged) and the expectation
@@ -401,73 +388,31 @@ fVerbose = FALSE
 ### If pdfs should be made
 ){
   print("Start funcGenerateExpVectorParameters")
-  # Bootstrap the Mu of the expectations and the Mu of the features
-  # Do this by randomly selecting a number of features to select
-  # Then randomly selecting that number of features from the calibration data set.
-  # Then model with lm (because it is linear from the figure).
-  # Remember when defining the relationship between the grand mu and the grand sd
-  # directly taking the mu will just give you the relationship with the expectation and the sd,
-  # not the mu. We want the relationship between the mus and the SD
-  vdBootGrandMu = c()
-  vdBootGrandSD = c()
-  vdBootGrandExp = c()
-  vdPredictedGrandExp = c()
-  for(iIndex in 1:1000)
-  {
-    # The minimum sample for the feature length here is 5, this is because a sd of 1 is NA and
-    # so the calculation would not be helpful. As well, approximating mean and sd with a very small
-    # subsample will be highly volatile. I will use the other more stable measurements of more
-    # samples to estimate this smaller more volatile group. 
-    vdBootFeatures = sample(vdExpectations, sample(5:length(vdExpectations), 1), replace=TRUE)
 
-    # Since all the features are not being selected, the case can arise that one selects very small
-    # features without the other more prevalent features. This can cause a very small mean which can cause
-    # problems with the log and rlnorm calls. These are also not important groupings of features so they are ignored and
-    # the relationship in the low end can be inferred by the others.
-    if(log(mean(vdBootFeatures))>0)
-    {
-      vdBootGrandExp = c(vdBootGrandExp,log(mean(vdBootFeatures)))
-      vdBootGrandSD = c(vdBootGrandSD,sd(log(vdBootFeatures)))
-      vdBootGrandMu = c(vdBootGrandMu,funcGetMu(vdBootGrandExp[length(vdBootGrandExp)],vdBootGrandSD[length(vdBootGrandExp)]))
-      vdPredictedGrandExp = c(vdPredictedGrandExp, log(mean(rlnorm(length(vdBootFeatures),vdBootGrandMu[length(vdBootGrandMu)],vdBootGrandSD[length(vdBootGrandSD)]))))
-      if(is.nan(vdPredictedGrandExp[iIndex])){print(paste("Feature c(",paste(vdBootFeatures, collapse=","),")"))}
-    }
-  }
+  #Point estimates of the distributions
+  #The exp you should get if you use these SD and Mu directly in the rlnorm
+  # Not logged
+  dExp = mean(vdExpectations)
+  #This gives the logSD value
+  dLogSD = sd(log(vdExpectations))
 
-  # Get the relationship between the Mu of Mus and the SD of Mus
-  lmGrand = lm(vdBootGrandSD ~ vdBootGrandMu)
-  dGrandBetaGuess = as.numeric(coef(lmGrand)["vdBootGrandMu"])
-  dGrandInterceptGuess = as.numeric(coef(lmGrand)["(Intercept)"])
+  # Get the Mu that would generate the Exp given the SD
+  # Already logged (logMu)
+  dLogMu = log(funcGetMu(dExp, exp(dLogSD)))
 
-  # Parameters to generate the expection vector
-  dMu = mean(log(vdExpectations))
-  dSD = sd(log(vdExpectations))
+  # The relationship between the Exp and the LogSD
+  dGrandBeta = dLogSD / dExp
 
-  # Document function
-  if(fVerbose)
-  {
-    # Distribution of Mus
-    # Hypothetical guess at generating Mus
-    vdGuess = rlnorm(length(vdExpectations), dMu, dSD)
-    hist(vdExpectations,main=paste("Untransformed Mu Vector from Calibration File", "Sum", sum(vdExpectations)))
-    plot(sort(log(vdGuess)),sort(log(vdExpectations)), xlab="Logged Predicted", ylab="Logged Measured", main=paste("Real Mus vs Estimated Mus", "Est Sum", sum(vdGuess)))
-
-    # Plot the relationship between Mu and SD
-    # Plot the expectation predicted from this relationship and the actual relationship
-    plot(vdBootGrandMu, vdBootGrandSD, main="Boosted Grand Mu v Grand sd")
-    points(x=vdBootGrandMu, y=funcEstimateGrandSD(vdBootGrandMu,dGrandBetaGuess,dGrandInterceptGuess), col="tan")
-    plot(vdPredictedGrandExp,vdBootGrandExp, xlab="Log Estimated", ylab="Log Measured", main="Check difference between measured and estimated expectations")
-  }
-
-  # Return the SD and Mu which would generate this vector with rlnorm
-  # Return the relationship between these
-  # Return the original read depth
-  # Returned values are already logged and can be used directly in rlnorm
-  return(list(GrandMu=dMu, GrandSD=dSD, dReadDepth=sum(vdExpectations), GrandSDBeta=dGrandBetaGuess, GrandSDIntercept=dGrandInterceptGuess))
+  return(list(GrandLogMu=dLogMu, GrandExp=dExp, GrandLogSD=dLogSD, dReadDepth=sum(vdExpectations), GrandLogSDBeta=dGrandBeta))
+### GrandMu: The logMus of the distributions
+### GrandExp: The expectation of the distributions mean(x)
+### GrandSD: The logSDs of the distributions
+### dReadDepth: The total average read depth of the samples
+### GrandSDBeta: The relationship between the logSD and the Exp
 }
 
 #!# TODO update exp business
-func_generate_bug_bug_spiking_matrix <- function(
+func_generate_bug_bug_spiking_matrix = function(
 ### Stub for bug bug interactions as a matrix. This just gives a zero inflated lognormal distributrion.
 ### You'll need to add correlations
 int_number_features,
@@ -495,16 +440,11 @@ dPercentZero = NA,
 fZeroInflate = TRUE,
 ### Controls if zero inflation is used.
 dBetaSD = c_dBetaSD,
-### The beta for the relationship between the Exp and the SD
-dSDIntercept = c_dInterceptSD,
 ### The beta for the relationship between the mu and sd in which generates the expectation vector
 dBetaGrandSD = c_dBetaGrandSD,
-### The intercept for the relationship between the mu and sd in which generates the expectation vector
-dInterceptGrandSD = c_dInterceptGrandSD,
-### The intercept for the relationship between the Exp and the SD
+### The beta for the relationship between the Exp and the SD
 dBetaZero = c_dBetaZero,
 ### The beta for the relationship between the Exp and the percent zero
-dInterceptZero = c_dZeroIntercept,
 fVerbose = FALSE
 ### If true, plotting and logging occur
 ){
@@ -555,28 +495,28 @@ fVerbose = FALSE
     ## Converting vectors and lists to appropriately delimited strings
     strNumCorrDomainBugs = paste(viNumCorrDomainBugs[1])
     if(length(viNumCorrDomainBugs)>1){
-      for(k in 2:length(viNumCorrDomainBugs)) strNumCorrDomainBugs <- paste(strNumCorrDomainBugs,viNumCorrDomainBugs[k],sep='; ')
+      for(k in 2:length(viNumCorrDomainBugs)) strNumCorrDomainBugs = paste(strNumCorrDomainBugs,viNumCorrDomainBugs[k],sep='; ')
     }
 
     strCorrRangeBugsIdx = paste(viCorrRangeBugsIdx[1])
     if(length(viCorrRangeBugsIdx)>1){
-      for(k in 2:length(viCorrRangeBugsIdx)) strCorrRangeBugsIdx <- paste(strCorrRangeBugsIdx,viCorrRangeBugsIdx[k],sep='; ')
+      for(k in 2:length(viCorrRangeBugsIdx)) strCorrRangeBugsIdx = paste(strCorrRangeBugsIdx,viCorrRangeBugsIdx[k],sep='; ')
     }
 
     strCorrDomainBugsIdx = toString(liCorrDomainBugsIdx[[1]])
     if(length(liCorrDomainBugsIdx) > 1){
-      for(k in 2:length(liCorrDomainBugsIdx)) strCorrDomainBugsIdx <- paste(strCorrDomainBugsIdx,toString(liCorrDomainBugsIdx[[k]]),sep='; ')
+      for(k in 2:length(liCorrDomainBugsIdx)) strCorrDomainBugsIdx = paste(strCorrDomainBugsIdx,toString(liCorrDomainBugsIdx[[k]]),sep='; ')
     }
     ## End converting to strings
 
   } else {
-    viNumCorrDomainBugs <- NA
-    viCorrRangeBugsIdx  <- NA
-    liCorrDomainBugsIdx <- NA
+    viNumCorrDomainBugs = NA
+    viCorrRangeBugsIdx  = NA
+    liCorrDomainBugsIdx = NA
 
-    strNumCorrDomainBugs <- "NA"
-    strCorrRangeBugsIdx  <- "NA"
-    strCorrDomainBugsIdx <- "NA"
+    strNumCorrDomainBugs = "NA"
+    strCorrRangeBugsIdx  = "NA"
+    strCorrDomainBugsIdx = "NA"
   }
 
   # This will hold the associations that you create and be placed in the truth file that is records association spike-ins for later assessment
@@ -605,11 +545,8 @@ fVerbose = FALSE
                                        vdSD = vdSD, 
                                        vdPercentZero = dPercentZero, 
                                        dBetaSD = dBetaSD, 
-                                       dSDIntercept = dSDIntercept, 
                                        dBetaZero = dBetaZero,
-                                       dInterceptZero = dInterceptZero,
                                        dBetaGrandSD = dBetaGrandSD,
-                                       dInterceptGrandSD = dInterceptGrandSD,
                                        fVerbose = fVerbose)
 
   # This gets a lognormal distribution, you can do this with a predefined mu vector if needed.
@@ -626,11 +563,8 @@ fVerbose = FALSE
                                                     vdSD = mu_vector[["sd"]],
                                                     fZeroInflate = fZeroInflate, 
                                                     dBetaSD = dBetaSD, 
-                                                    dSDIntercept = dSDIntercept, 
                                                     dBetaZero = dBetaZero,
-                                                    dInterceptZero = dInterceptZero,
                                                     dBetaGrandSD = dBetaGrandSD,
-                                                    dInterceptGrandSD = dInterceptGrandSD,
                                                     fVerbose = fVerbose )[["mat_bugs"]]
 
   # Generating the correlation structure (very simple at the moment)
@@ -660,7 +594,7 @@ fVerbose = FALSE
 }
 
 
-func_generate_lefse_matrices <- function(
+func_generate_lefse_matrices = function(
 lefse_file,
 metadata_parameters,
 int_number_features,
@@ -676,27 +610,26 @@ dataset_type
   # Get the indices of factor metadata
   lsIndicesOfMicrobiomes = which(sapply(as.vector(metadata_parameters), function(x) grepl('Factor',x))==TRUE)
 
-  l_lefse_matrix <- list()
-  lefse_matrix_1 <- matrix(data=NA, nrow=(int_number_features+2), ncol=(int_number_samples+1))
+  l_lefse_matrix = list()
+  lefse_matrix_1 = matrix(data=NA, nrow=(int_number_features+2), ncol=(int_number_samples+1))
   for (meta_index in lsIndicesOfMicrobiomes)
   {
     lefse_matrix_1[1,1] = 'SampleID'
-    lefse_matrix_1[1,2:(int_number_samples + 1)] <- paste('Sample',1:int_number_samples,sep='')
-    lefse_matrix_1[2,1] <- 'Metadata'
-    lefse_matrix_1[2,2:(int_number_samples+1)] <- mat_metadata[(meta_index-1),]
-    lefse_matrix_1[3:(int_number_features+2),1] <- paste("Bug", 1:int_number_features, sep='')
-    lefse_matrix_1[3:(int_number_features+2),2:(int_number_samples+1)] <- mat_bugs
-    lefse_filenames <- file.path(lefse_file, paste('LefSe_',dataset_type, '_metadata_',(meta_index-1), '.1-pcl', sep=''))
+    lefse_matrix_1[1,2:(int_number_samples + 1)] = paste('Sample',1:int_number_samples,sep='')
+    lefse_matrix_1[2,1] = 'Metadata'
+    lefse_matrix_1[2,2:(int_number_samples+1)] = mat_metadata[(meta_index-1),]
+    lefse_matrix_1[3:(int_number_features+2),1] = paste("Bug", 1:int_number_features, sep='')
+    lefse_matrix_1[3:(int_number_features+2),2:(int_number_samples+1)] = mat_bugs
+    lefse_filenames = file.path(lefse_file, paste('LefSe_',dataset_type, '_metadata_',(meta_index-1), '.1-pcl', sep=''))
     write.table(lefse_matrix_1,file=lefse_filenames, quote=FALSE, row.names=FALSE, col.names=FALSE,sep='\t')
-    l_lefse_matrix[[length(l_lefse_matrix)+1]] <- lefse_matrix_1
+    l_lefse_matrix[[length(l_lefse_matrix)+1]] = lefse_matrix_1
   }
   return(l_lefse_matrix)
 }
 
-#!# TODO fix for exp update
-#!# TODO should the relationships between mu and such be with the exp or the log mu
+# 32 Tests 9/4/2013
 # Reviewed but not tested
-funcGenerateFeatureParameters <- function(
+funcGenerateFeatureParameters = function(
 ### Generate the feature mu paramater vector and associated SD parameter, expectation, and percent zeros if needed
 # If a mu parameter vector is given of the size of the int_number_samples then pass through
 # Otherwise sample to that size with replacement.
@@ -705,7 +638,7 @@ int_number_features,
 int_number_samples,
 ### Number of samples
 iMinNumberSamples,
-### Minimum number of samples
+### Minimum number of samples not zero
 iReadDepth,
 ### Simulated read depth
 vdExp = NA,
@@ -717,16 +650,10 @@ vdSD = NA,
 vdPercentZero = NA,
 ### The vector of percent zeros matching the vdMus
 dBetaSD = c_dBetaSD,
-### If vdSD is not given, SD will be generated by a relationship with Exp parameters using this relationship between Mu parameters and SD parameters
-dSDIntercept = c_dSDIntercept,
-### If vdSD is not given, SD will be generated by a relationship with Exp parameters using the intercept given here
+### If vdSD is not given, SD will be generated by a relationship with Exp parameters using the beta given here
 dBetaZero = c_dBetaZero,
-### If vdPercentZero is not given, vdPercentZero will be generated by a relationship with Exp using this relationship between Mu and percent zero with an intercept
-dInterceptZero = c_dZeroIntercept,
-### If vdPercentZero is not given, vdPercentZero will be generated by a relationship with Exp using this relationship between Mu and percent zero with an intercept
+### If vdPercentZero is not given, vdPercentZero will be generated by a relationship with Exp using this relationship between Mu and percent zero with an beta
 dBetaGrandSD = c_dBetaGrandSD,
-### The beta for the relationship between the mu of mus (of feature distributions) and the SD of mus (of feature distributions)
-dInterceptGrandSD = c_dInterceptGrandSD,
 ### The beta for the relationship between the mu of mus (of feature distributions) and the SD of mus (of feature distributions)
 fVerbose = FALSE
 ### Controls the plotting of graphic pdf logging (Default FALSE, TRUE indicates logging occurs)
@@ -736,7 +663,6 @@ fVerbose = FALSE
   if(fVerbose & !is.na(vdExp))
   {
     hist(vdExp,main="funcGenerateFeatureParameters: Original data expectation")
-#    hist(rlnorm(int_number_features, log(dGrandMu), log(dGrandMu)*dBetaGrandSD+dInterceptGrandSD), main=paste("funcGenerateFeatureParameters: Predicting Original epectation","dBetaGrandSD", dBetaGrandSD))
   }
 
   if(is.na(vdExp))
@@ -754,32 +680,46 @@ fVerbose = FALSE
       print("The Grand SD is frozen")
       lsParams = list(dBestExp=iReadDepth/int_number_features, dBestSD=1, dBestMu=iReadDepth/int_number_features, dBestDepth=iReadDepth, dTargetDepth=iReadDepth)
     } else {
-      lsParams = funcGetParamsForReadDepth(dReadDepth=iReadDepth/int_number_features, dIntercept=dInterceptGrandSD, dBeta=dBetaGrandSD)
+      lsParams = funcGetParamsForReadDepth(dReadDepthPerFeature=iReadDepth/int_number_features, dBeta=dBetaGrandSD)
     }
+    print("lsParams")
+    print(lsParams)
 
     # Remember this is a vector of expectation not of log mu parameters.
-    lExpVectorReturn = funcTruncatedRLNorm(iNumberMeasurements=int_number_features, dLogMean=lsParams$dBestMu, dLogSD=lsParams$dBestSD, iThreshold= c_iTimesSDIsOutlier*exp(lsParams$dBestSD)+exp(lsParams$dBestMu))
+    lExpVectorReturn = funcTruncatedRLNorm(iNumberMeasurements=int_number_features, dLogMean=lsParams$dLogMu, dLogSD=lsParams$dLogSD, iThreshold=exp((c_iTimesSDIsOutlier*lsParams$dLogSD)+lsParams$dLogMu))
     vdExp = lExpVectorReturn$Feature
+
+    print("lExpVectorReturn")
+    print(lExpVectorReturn)
 
     ### Update vdExp to read depth
     dCurReadDepthDifference = iReadDepth-sum(vdExp)
-    viSamplingIndices = sample(1:length(vdExp),abs(dCurReadDepthDifference),replace=TRUE)
 
     ### Update  the distribution to the read depth requested.
     ### Depending on how many features are requested this is more or less needed
     ### This is not needed at the limit with many features.
     if(dCurReadDepthDifference > 0)
     {
+      viSamplingIndices = sample(1:length(vdExp),abs(dCurReadDepthDifference),replace=TRUE)
       for(iIndex in viSamplingIndices)
       {
         vdExp[iIndex] = vdExp[iIndex]+1
       }
     } else if(dCurReadDepthDifference < 0) {
-      for(iIndex in viSamplingIndices)
+      for(iIndex in 1:round(abs(dCurReadDepthDifference)))
       {
-        vdExp[iIndex] = vdExp[iIndex]-1
+        viGreaterThanOne = which(vdExp > 2)
+        if(length( viGreaterThanOne ) > 0)
+        {
+          iGreaterThanOne = viGreaterThanOne
+          if(length(iGreaterThanOne)>1){iGreaterThanOne = sample(iGreaterThanOne,1)}
+          vdExp[iGreaterThanOne] = vdExp[iGreaterThanOne]-1
+        }
       }
     }
+
+    print("vdExp")
+    print(vdExp)
 
     if(fVerbose)
     {
@@ -792,17 +732,27 @@ fVerbose = FALSE
     vdPercentZero = NA
   }
 
+  # Make sure there are no zeros in the expectation vector
+  vdExp[ which( vdExp == 0 ) ] = c_dALittleMoreThanZero
+  print("vdExp vdExp")
+  print(vdExp)
+
   # TODO update
   if(is.na(vdSD))
   {
     # Generate vector of SD based on mu since it is not known
     print("funcGenerateFeatureParameters: Generate vdSD Vector.")
 
-    vdSD = funcEstimateFeatureSD(log(vdExp),dBetaSD,dSDIntercept)
+    vdSD = exp(funcEstimateFeatureSD(log(vdExp),dBetaSD))
     if(length(vdExp)==1){vdSD = 0}
 
     # Floor to close to 1 or exp(0)
-    vdSD[which(vdSD<1)] = 1
+    viLessThan1 = which(vdSD<1)
+    if(length(viLessThan1)>0)
+    {
+      print(paste("funcGenerateFeatureParameters: Changing low SDs to 1. # occurences = ",length(viLessThan1)))
+      vdSD[which(vdSD<1)] = 1
+    }
 
     if(fVerbose)
     {
@@ -822,12 +772,20 @@ fVerbose = FALSE
     vdMu = sapply(1:length(vdExp), function(x) funcGetMu(vdExp[x],vdSD[x]))
   }
 
-  # TODO update
   if(is.na(vdPercentZero))
   {
-    # Generate vector of percent zero based on mu since it is not known    print("funcGenerateFeatureParameters: Generate vdPercentZero Vector.")
-    vdPercentZero = funcEstimatePercentZero(log(vdExp),dBetaZero,dInterceptZero)
-    vdPercentZero[vdPercentZero < 0] = 0
+    print("dBetaZero")
+    print(dBetaZero)
+    # Generate vector of percent zero based on exp since it is not known    print("funcGenerateFeatureParameters: Generate vdPercentZero Vector.")
+    vdPercentZero = funcEstimatePercentZero(log(vdExp),dBetaZero)
+    print("vdPercentZero")
+    print(vdPercentZero)
+    viLessThanZero = which(vdPercentZero < 0)
+    if(length(viLessThanZero>0))
+    {
+      print(paste("funcGenerateFeatureParameters: Changing negative Percent Zeros to 0. # occurences = ",length(viLessThanZero)))
+      vdPercentZero[vdPercentZero < 0] = 0
+    }
     if(fVerbose){plot(log(vdExp), vdPercentZero, main="Generated Relationship of PercentZero and Log exp", col="purple")}
   }
 
@@ -843,20 +801,26 @@ fVerbose = FALSE
     vdPercentZero = vdPercentZero[viWhich]   
   }
 
+  print("stop funcGenerateFeatureParameters")
+
   # QC and contraints for percent zero
   # Make sure the percent zero passes the max
   # If there are not enough nonzeros, there is no signal to use.
   # This should be th max. Given there is a certain number of samples that have to have signal
-  # THe percentage of zeros must allow for those samples not to be zero and so restricts
+  # The percentage of zeros must allow for those samples not to be zero and so restricts
   # the max the percent zero can be.
   dMaxPercent = 1-(iMinNumberSamples/int_number_samples)
   vdPercentZero[which(vdPercentZero>dMaxPercent)] = dMaxPercent
   return(list(exp=vdExp, mu=vdMu,sd=vdSD,PercentZero=vdPercentZero))
+  ### exp Vector of expectations (the expectation vector)
+  ### mu Vector of mu (not logMu) associated with the vdExp (by index)
+  ### sd Vector of sd (not logSD) associated with the vdExp (by index)
+  ### PercentZero Vector of percent zeros (0-1) associated with the vdExp (by index)
 }
 
 
 #!# TODO look over
-func_generate_metadata <- function(
+func_generate_metadata = function(
 int_base_metadata_number,
 int_number_samples,
 ### Number of samples
@@ -864,7 +828,7 @@ dMinLevelPercent
 ### The minimum percent of samples a level can have
 ){
   # Preallocate matrix
-  mat_metadata <- matrix(data=NA,nrow=(int_base_metadata_number*c_iCountTypesOfMetadata),ncol=int_number_samples)
+  mat_metadata = matrix(data=NA,nrow=(int_base_metadata_number*c_iCountTypesOfMetadata),ncol=int_number_samples)
 
   # Used to report on metadata
   mtrxParameters = c(c_strMetadataDetails)
@@ -888,7 +852,7 @@ dMinLevelPercent
   i = 1
   for (mean_value in li_mean_value_list)
   {
-    mat_metadata[i,] <- rnorm(int_number_samples,mean=mean_value,sd=mean_value/5)
+    mat_metadata[i,] = rnorm(int_number_samples,mean=mean_value,sd=mean_value/5)
     mtrxParameters = c(mtrxParameters, paste(c_strMetadata, i, " ", c_strContinuous, sep =""))
     i = i+1
   }
@@ -900,7 +864,7 @@ dMinLevelPercent
   {
     for (k in (length(li_probability_values_list)+1):int_base_metadata_number)
     {
-      probability = runif(1, c_dRunifMin, c_dRunifMax)
+      probability = runif(1, c_dMinBinary, c_dMaxBinary)
       li_probability_values_list = c(li_probability_values_list,list(c(probability, 1-probability)))
     }
   } else {
@@ -942,7 +906,7 @@ dMinLevelPercent
         print(paste("Suboptional metadata was created, did not pass quality control, is too imbalanced. Minimum level is preferred to be ", iMinLevelBinaryCount,"."))
       }
     }
-    mat_metadata[i,] <- vsCurMetadata
+    mat_metadata[i,] = vsCurMetadata
     mtrxParameters = c(mtrxParameters, paste(c_strMetadata, i, " ", c_strFactor, " ", paste(levels(as.factor(mat_metadata[i,])), collapse = " "), sep=""))
     i = i+1
   }
@@ -980,7 +944,7 @@ dMinLevelPercent
         #print(vcCurMetadata)
       }
     }
-    mat_metadata[i,] <- vsCurMetadata
+    mat_metadata[i,] = vsCurMetadata
 
     mtrxParameters = c(mtrxParameters, paste(c_strMetadata, i, " ", c_strFactor, " ", paste(levels(as.factor(mat_metadata[i,])), collapse = " "), sep=""))
     i = i+1
@@ -989,7 +953,7 @@ dMinLevelPercent
 }
 
 #!# TODO check for exp update
-func_generate_random_lognormal_matrix <- function(
+func_generate_random_lognormal_matrix = function(
 int_number_features,
 ### Number of features
 int_number_samples,
@@ -1011,25 +975,24 @@ fZeroInflate = TRUE,
 ### Turns off Zero inflation if FALSE (default TRUE, zero inflation turned on)
 dBetaSD = c_dBetaSD,
 ### The beta in the relationship between the sd and the feature exp
-dSDIntercept = c_dInterceptSD,
-### The intercept in the relationship between the sd and the feature exp
 dBetaZero = c_dZeroBeta,
 ### The beta in the relationship between the percent zero and the exp
-dInterceptZero = c_dZeroIntercept,
-### The intecept in the relationship between the percent zero and the exp
 dBetaGrandSD = c_dBetaGrandSD,
 ### The beta in the relationship between mu and sd in the vector of feature expectations
-dInterceptGrandSD = c_dInterceptGrandSD,
-### The intercept in the relationship between mu and sd in the vector of feature expectations
 fVerbose = FALSE
 ### Turns on logging (typically generates pdfs)
 ){
-  print(paste("func_generate_random_lognormal_matrix::", "int_number_samples", int_number_samples, "int_number_features", int_number_features, "iReadDepth", iReadDepth, "dBetaSD", dBetaSD, "dSDIntercept", dSDIntercept, "fZeroInflate", fZeroInflate))
+  print(paste("func_generate_random_lognormal_matrix::", "int_number_samples", int_number_samples, "int_number_features", int_number_features, "iReadDepth", iReadDepth, "dBetaSD", dBetaSD, "fZeroInflate", fZeroInflate))
 
   # Preallocating for speed
-  mat_bugs <- matrix(data=NA,nrow=int_number_features,ncol=int_number_samples)
+  mat_bugs = matrix(data=NA,nrow=int_number_features,ncol=int_number_samples)
   # Get the initial mu vector for generating features.
-  lsInitialDistribution = funcGenerateFeatureParameters(int_number_features=int_number_features, int_number_samples=int_number_samples, iMinNumberSamples=iMinNumberSamples, iReadDepth=iReadDepth, vdExp=vdExp, vdMu=vdMu, vdSD=vdSD, vdPercentZero=xPercentZero, dBetaSD=dBetaSD, dSDIntercept=dSDIntercept, dBetaZero=dBetaZero, dInterceptZero=dInterceptZero, dBetaGrandSD = dBetaGrandSD, dInterceptGrandSD = dInterceptGrandSD, fVerbose=fVerbose)
+  lsInitialDistribution = funcGenerateFeatureParameters(int_number_features=int_number_features, int_number_samples=int_number_samples, iMinNumberSamples=iMinNumberSamples, iReadDepth=iReadDepth, vdExp=vdExp, vdMu=vdMu, vdSD=vdSD, vdPercentZero=xPercentZero, dBetaSD=dBetaSD, dBetaZero=dBetaZero, dBetaGrandSD = dBetaGrandSD, fVerbose=fVerbose)
+
+  print("lsInitialDistribution")
+  print(lsInitialDistribution)
+  print("SUM exp")
+  print(sum(lsInitialDistribution$exp))
 
 #  # Need to set the distributions to the right magnitude, previously in the log form
 #  lsInitialDistribution$mu = exp(1)^lsInitialDistribution$mu
@@ -1044,7 +1007,8 @@ fVerbose = FALSE
   # TODO remove
   if(c_dfFreezeSDFeatures)
   { 
-    if(length(vdSD))
+    print("Feature SDs are frozen.")
+    if(length(vdSD)>0)
     {
       vdMu = rep(iReadDepth/int_number_features, length(vdSD))
       vdSD = rep(1,length(vdSD))
@@ -1056,12 +1020,13 @@ fVerbose = FALSE
 
   # Record the current read depths of the columns (samples)
   vdLeftOver = rep(0, int_number_samples)
-
+  print("*** 3 fZeroInflate")
+  print(fZeroInflate)
   # Make features and assign feature samples to samples giving higher counts to lower read depth samples.
   for(iReset in 1:int_number_features)
   {
     # Create new feature
-    lFeatureDetails = funcMakeFeature(dMu=vdMu[iReset], dSD=vdSD[iReset], dPercentZero=xPercentZero[iReset], iNumberSamples=int_number_samples, iMinNumberCounts=iMinNumberCounts, iMinNumberSamples=iMinNumberSamples, dTruncateThreshold=c_iTimesSDIsOutlier*exp(vdSD[iReset])+exp(vdMu[iReset]), fZeroInflate=fZeroInflate, fVerbose=fVerbose )
+    lFeatureDetails = funcMakeFeature(dMu=vdMu[iReset], dSD=vdSD[iReset], dPercentZero=xPercentZero[iReset], iNumberSamples=int_number_samples, iMinNumberCounts=iMinNumberCounts, iMinNumberSamples=iMinNumberSamples, dTruncateThreshold=(c_iTimesSDIsOutlier*vdSD[iReset])+vdMu[iReset], fZeroInflate=fZeroInflate, fVerbose=fVerbose )
 
     # Store the left over counts per sample
     vdLeftOver = vdLeftOver + lFeatureDetails$LeftOver
@@ -1079,19 +1044,27 @@ fVerbose = FALSE
   mat_bugs = funcShuffleMatrix(mtrxData=mat_bugs, vdFeatureMus=vdMu, vdShuffleIn=vdLeftOver)
 
   # Floor to Counts
-  mat_bugs = round(mat_bugs)
+  lRoundedResult = funcRoundMatrix(mtrxData=mat_bugs, vdLeftOver=vdLeftOver)
+  mat_bugs = lRoundedResult$Data
+  vdLeftOver = lRoundedResult$LeftOver
+
   if(c_dfFreezeSDGrandMu ||c_dfFreezeSDFeatures||c_fPrintLognormalMatrix)
   {
-    print(mat_bugs)
+#    print("bug counts")
+#    print(mat_bugs)
     print("Read Depth")
     print(colSums(mat_bugs))
+    print("Average read depth")
     print(mean(colSums(mat_bugs)))
     print("Feature mean")
     print(funcGetRowMetric(mat_bugs,mean))
     print("vdExp")
     print(vdExp)
+    print("Sum exp")
+    print(sum(vdExp))
     print("Sum exp, should be read depth")
     print(sum(vdExp))
+    print("Feature mean summary")
     print(summary(funcGetRowMetric(mat_bugs,mean)))
   }
 
@@ -1103,13 +1076,13 @@ fVerbose = FALSE
   }
 
   # Truth table for log normal data
-  mtrxParameters <- matrix(data=NA, nrow=6, ncol=1)
-  mtrxParameters[1,1] <- paste(c_strSyntheticMicrobiome, c_strRandom, sep='')
-  mtrxParameters[2,1] <- paste(c_strNumberOfFeatures, int_number_features)
-  mtrxParameters[3,1] <- paste(c_strNumberOfSamples, int_number_samples)
-  mtrxParameters[4,1] <- paste(c_strTotalSampleBugOccurrence, iReadDepth)
-  mtrxParameters[5,1] <- paste(c_strNumberCounts, iMinNumberCounts)
-  mtrxParameters[6,1] <- paste(c_strNumberSamples, iMinNumberSamples)
+  mtrxParameters = matrix(data=NA, nrow=6, ncol=1)
+  mtrxParameters[1,1] = paste(c_strSyntheticMicrobiome, c_strRandom, sep='')
+  mtrxParameters[2,1] = paste(c_strNumberOfFeatures, int_number_features)
+  mtrxParameters[3,1] = paste(c_strNumberOfSamples, int_number_samples)
+  mtrxParameters[4,1] = paste(c_strTotalSampleBugOccurrence, iReadDepth)
+  mtrxParameters[5,1] = paste(c_strNumberCounts, iMinNumberCounts)
+  mtrxParameters[6,1] = paste(c_strNumberSamples, iMinNumberSamples)
 
   print("stop func_generate_random_lognormal_matrix")
   return(list(mat_bugs=mat_bugs, mtrxParameters=mtrxParameters))
@@ -1117,7 +1090,7 @@ fVerbose = FALSE
 }
 
 
-func_generate_random_lognormal_with_outliers <- function(
+func_generate_random_lognormal_with_outliers = function(
 ### Generates a random log normal distribution of data as a null matrix
 ### The option of using a matrix passed in as a parameter as the null matrix is provided (mtrxBugs)
 ### A percent of samples are given outliers based on the percent parameter
@@ -1186,8 +1159,8 @@ fVerbose = FALSE
       for (iOutlier in 1:iNumberOutliers)
       {
         # Get the indices of all Min and max values ties
-        iMaxValue <- dfSorted[(int_number_features-(iOutlier-1)), iSample]
-        iMinValue <- dfSorted[iOutlier+iBufferForZeros, iSample]
+        iMaxValue = dfSorted[(int_number_features-(iOutlier-1)), iSample]
+        iMinValue = dfSorted[iOutlier+iBufferForZeros, iSample]
         viMaxValueIndices = which(mat_bugs_dataframe[[iSample]]==iMaxValue)
         viMinValueIndices = which(mat_bugs_dataframe[[iSample]]==iMinValue)
         iRowMax = setdiff(viMaxValueIndices,viAlreadySelected)
@@ -1203,7 +1176,7 @@ fVerbose = FALSE
           iRowMin = sample(c(setdiff(viMinValueIndices,viAlreadySelected)), size = 1)
         }
 
-        mtrxBugs[c(iRowMin, iRowMax), iSample] <- mtrxBugs[c(iRowMax, iRowMin), iSample]
+        mtrxBugs[c(iRowMin, iRowMax), iSample] = mtrxBugs[c(iRowMax, iRowMin), iSample]
         viAlreadySelected = c(viAlreadySelected, iRowMax, iRowMin)
       }
       # Record which features were swapped with lists as features, basically a transpose
@@ -1258,7 +1231,7 @@ fVerbose = FALSE
 }
 
 
-func_generate_random_lognormal_with_multivariate_spikes <- function(
+func_generate_random_lognormal_with_multivariate_spikes = function(
 ### Spike in associations with 1 or more metadata
 int_number_features,
 ### Number of features
@@ -1370,18 +1343,18 @@ fVerbose = FALSE
         # Not difference driven by selecting diffrent bugs
         if(!is.null(liFrozeDataIndicies) & length(lviFrozeMetadataIndices)>0)
         {
-          iIndexSpikedFeature <- liFrozeDataIndicies[[iSpikedBug]]
-          iSpikeInLoopControl <- iSpikeinCount + 1
+          iIndexSpikedFeature = liFrozeDataIndicies[[iSpikedBug]]
+          iSpikeInLoopControl = iSpikeinCount + 1
         } else {
-          iIndexSpikedFeature <- sample(viRemainingFeatures,1)
+          iIndexSpikedFeature = sample(viRemainingFeatures,1)
         }
 
         # Select which of the metadatum we will be using to scale
         if(!is.null(lviFrozeMetadataIndices) & length(lviFrozeMetadataIndices)>0)
         {
-          viSelectedMetadata <- lviFrozeMetadataIndices[[iSpikedBug]]
+          viSelectedMetadata = lviFrozeMetadataIndices[[iSpikedBug]]
         } else {
-          viSelectedMetadata <- sample(1:nrow(metadata_matrix), multivariate_parameter, replace=TRUE)
+          viSelectedMetadata = sample(1:nrow(metadata_matrix), multivariate_parameter, replace=TRUE)
         }
 
         # Get matrix of metadata and feature
@@ -1450,7 +1423,7 @@ fVerbose = FALSE
         liData[[ length(liData)+1 ]] = iIndexSpikedFeature
 
         # Update spike-in
-        mtrxBugs[iIndexSpikedFeature,] <- vdSpikedBug
+        mtrxBugs[iIndexSpikedFeature,] = vdSpikedBug
         if(length(lsFrozeLevels) < iSpikedBug)
         {
           lsFrozeLevels[[iSpikedBug]] = vsCurFrozeLevels
@@ -1505,7 +1478,7 @@ fVerbose = FALSE
     }
   }
   # Floor to counts (spike-ins will be real numbers)
-  mtrxBugs <- floor(mtrxBugs)
+  mtrxBugs = floor(mtrxBugs)
 
   print("stop func_generate_random_lognormal_with_multivariate_spikes")
 
@@ -1514,8 +1487,8 @@ fVerbose = FALSE
 }
 
 
-# Tested
-funcGetExp <- function(
+# 3 Tests 9/4/2013
+funcGetExp = function(
 ### Given the Mu and SD, get the expectation
 ### Will need to 
 # Expects the values not logged
@@ -1524,12 +1497,12 @@ funcGetExp <- function(
 dMu,
 dSD
 ){
-  return(exp(log(dMu,exp(1))+.5*(log(dSD,exp(1))^2)))
+  return( exp( log( dMu, exp( 1 ) ) + 0.5 * ( log( dSD, exp( 1 ) )^2 ) ) )
 }
 
 
-# Tested
-funcGetMu <- function(
+# 3 Tests 9/4/2013
+funcGetMu = function(
 ### Get the mu given SD and an expectation
 # Expects the Exp to be the mean(data) and SD to be the sd(log(data))
 # so sd(log(rlnorm(10000,3,2))) to calculate the value
@@ -1539,98 +1512,62 @@ funcGetMu <- function(
 dEx,
 dSD
 ){
-  return(exp( -1*(( (log( dSD, exp(1) )^2) /2 )-log( dEx, exp(1) )) ))
+  return( exp( -1 * ( ( ( log( dSD, exp( 1 ) )^2 ) /2 ) - log( dEx, exp( 1 ) ) ) ) )
 }
 
 
-funcGetParamsForReadDepth <- function(
-### From the relationship between the grand mu and grand sd contained in the dInterceptGrandSD and dBetadGradSD
+# 2 Tests 9/4/2013
+funcGetParamsForReadDepth = function(
+### From the relationship between the grand mu and grand sd contained in dBetadGradSD
 ### A mu and sd is calculated that should satisfy the given read depth
-dReadDepth,
+dReadDepthPerFeature,
 ### The read depth of interest in the original scale
-dIntercept,
-### The intercept describing the relatioship
 dBeta
 ### The beta describing the relationship
 ){
-  # Get the mus based on read depth
-  vdMus = funcQuadratic(dBeta^2, 2+(2*dBeta*dIntercept), (dIntercept^2)-(2*log(dReadDepth)))
+  # Get the associated SD from the EXP
+  dLogSD = funcEstimateGrandSD( dReadDepthPerFeature, dBeta )
 
-  # Get the associated SD
-  vdSD = sapply(vdMus, function(x) funcEstimateGrandSD(x, dBeta, dIntercept))
+  # Get the associated mu
+  dMu = funcGetMu( dReadDepthPerFeature, exp( dLogSD ) )
 
-  # Get the best expectation generated by the mu sd pairs
-  dBestExp = NA
-  dBestDifference = NA
-  dBestMu = NA
-  dBestSD = NA
-
-  # Find which of the two possible solutions is better
-  if(vdSD[1]>=0)
-  {
-    dCurExp = funcGetExp(exp(vdMus[1]),exp(vdSD[1]))
-    dCurDifference = abs(dCurExp-dReadDepth)
-    if(dCurExp>=0)
-    {
-      dBestExp = dCurExp
-      dBestDifference = dCurDifference
-      dBestMu = vdMus[1]
-      dBestSD = vdSD[1]
-    }
-  }
-
-  if(length(vdSD))
-  {
-    if(vdSD[2]>=0)
-    {
-      dCurExp = funcGetExp(exp(vdMus[2]),exp(vdSD[2]))
-      dCurDifference = abs(dCurExp-dReadDepth)
-      if((dCurDifference<dBestDifference) && (dCurExp>=0))
-      {
-        dBestExp = dCurExp
-        dCurDifference = dDifference
-        dBestMu = vdMus[2]
-        dBestSD = vdSD[2]
-      }
-    }
-  }
-
-  ### The Mu and the SD are in logged space
-  ### The Read depth is in original space
-  return(list(dBestMu=dBestMu, dBestSD=dBestSD, dBestExp=dBestExp, dTargetDepth=dReadDepth))
+  return( list( dLogMu = log( dMu ), dLogSD = dLogSD ) )
+  ### dLogMu: The logMu which, with the logSD, would give the read depth (exp)
+  ### dLogSD: The logMu which, with the logSD, would give the read depth (exp)
 }
 
 
-funcGetRowMetric <- function(
+# 3 Tests 9/4/2013
+funcGetRowMetric = function(
 ### Get mean for vector or matrix
 lxValues,
 ### Values of metadata which may be discrete (in which after the _ is a number) or a numeric
 ### Method to perform on values
 funcMethod
 ){
-  if(is.null(dim(lxValues)[1]))
+  if( is.null( dim( lxValues )[1] ) )
   {
-    return(mean(lxValues,na.rm=TRUE))
+    return( mean( lxValues, na.rm=TRUE ) )
   }
-  return( apply(lxValues, 1, funcMethod, na.rm=TRUE))
+  return( apply( lxValues, 1, funcMethod, na.rm=TRUE ) )
 }
 
 
-# Tested
-funcGetSD <- function(
+# 3 Tests 9/4/2013
+funcGetSD = function(
 ### Get standard deviation for vector or matrix
 lxValues
 ### matrix or vector
 ){
-  if(is.null(dim(lxValues)[1]))
+  if( is.null( dim( lxValues )[ 1 ] ) )
   {
-    return(sd(lxValues,na.rm=TRUE))
+    return( sd( lxValues, na.rm = TRUE ) )
   }
-  return( apply(lxValues, 1, sd, na.rm=TRUE))
+  return( apply( lxValues, 1, sd, na.rm = TRUE ) )
 }
 
 
-# Tested
+# 4 Tests 9/4/2013
 funcIsFactorMetadataValid = function(
 ### Check to make sure a level of entrophy is in a discontinuous metadata so it has a minimal level to associate
 vxMetadata,
@@ -1638,20 +1575,20 @@ vxMetadata,
 iMin
 ### Minimum number of instances of a level
 ){
-  vxFactorMetadata = as.factor(vxMetadata)
-  lstrLevels = levels(vxFactorMetadata)
-  for(strLevel in lstrLevels)
+  vxFactorMetadata = as.factor( vxMetadata )
+  lstrLevels = levels( vxFactorMetadata )
+  for( strLevel in lstrLevels )
   {
-    if(length(which(vxFactorMetadata==strLevel))<iMin)
+    if( length( which( vxFactorMetadata == strLevel ) ) < iMin )
     {
-      return(FALSE)
+      return( FALSE )
     }
   }
-  return(TRUE)
+  return( TRUE )
 }
 
 
-funcMakeFeature <- function(
+funcMakeFeature = function(
 ### Create a feature given parameters
 ### Uses a zero inflated model if necessary
 ### Enforces a min number samples with signal if needed.
@@ -1728,7 +1665,7 @@ fVerbose = FALSE
 }
 
 
-# Tested
+# 4 Tests 9/4/2013
 funcNormalizeMicrobiome = function(
 ### Normalize the data assuming that the 
 ### Samples are columns and the features (bugs) are rows.
@@ -1736,14 +1673,14 @@ funcNormalizeMicrobiome = function(
 mtrxMicrobiome
 ### Matrix or dataframe microbiome
 ){
-  mtrxRelAb = mtrxMicrobiome/unlist(lapply(colSums(mtrxMicrobiome),function(x) rep(x,nrow(mtrxMicrobiome))))
-  viZero = which(apply(mtrxMicrobiome,2,sum)==0)
-  mtrxRelAb[,viZero]=rep(0,nrow(mtrxRelAb))
-  return(mtrxRelAb)
+  mtrxRelAb = mtrxMicrobiome / unlist( lapply( colSums( mtrxMicrobiome ), function( x ) rep( x, nrow( mtrxMicrobiome ) ) ) )
+  viZero = which( apply( mtrxMicrobiome, 2, sum ) == 0 )
+  mtrxRelAb[, viZero] = rep( 0, nrow( mtrxRelAb ) )
+  return( mtrxRelAb )
 }
 
 
-# Tested
+# 4 Tests 9/4/2013
 # Will fail if all are integer if using to detect metadata
 # Returns a TRUE (1) for each int value so if
 # the return vector's sum is 0, the data is not numeric
@@ -1752,10 +1689,11 @@ funcNumericIsInt = function(
 dValue
 ### The numeric value to check
 ){
-  return(paste(as.integer(dValue),sep="")==paste(dValue,sep=""))
+  return( paste( as.integer( dValue ), sep = "" ) == paste( dValue, sep = "" ) )
 }
 
 
+# Plotting function. Not in regression suite
 funcPlotSpikeins = function(
 ### Plots normalized spikeins
 vsTruth,
@@ -2000,23 +1938,56 @@ fDummyFactorData = TRUE
 }
 
 
-funcQuadratic <- function(
-### Solve a quadratic solution with the quadratic formula
-a,
-### A variable
-b,
-### B variable
-c
-### C variable
+funcRoundMatrix = function(
+### Round a matrix
+mtrxData,
+### Matrix of data values to round
+vdLeftOver
+### Left over signal to use
 ){
-  dSRBase = sqrt((b^2)-(4*a*c))
-  x1 = ((-1*b)+dSRBase)/(2*a)
-  x2 = ((-1*b)-dSRBase)/(2*a)
-  return(unique(c(x1,x2)))
+  for( iSample in 1:ncol( mtrxData ) )
+  {
+    vdCur = mtrxData[,iSample]
+    viRound = intersect( which( vdCur < 1 ), which( vdCur > 0 ) )
+    iCompensate = length( viRound )
+    if( iCompensate > 0)
+    {
+      mtrxData[viRound, iSample] = 1
+
+      if( vdLeftOver[iSample] > 0 )
+      {
+        if( iCompensate > vdLeftOver[iSample] )
+        {
+          iCompensate = iCompensate - vdLeftOver[iSample]
+          vdLeftOver[iSample] = 0
+        } else {
+          vdLeftOver[iSample] = vdLeftOver[iSample] - iCompensate
+          iCompensate = 0
+        }
+      }
+      if( iCompensate > 0 )
+      {
+        for( iRemove in 1:iCompensate )
+        {
+          viReplace = which( mtrxData[,iSample] > 1 )
+          if( length(viReplace) > 0 )
+          {
+            iReplace = viReplace
+            if( length(iReplace) > 1)
+            {
+              iReplace = sample(iReplace,1)
+            }
+            mtrxData[iReplace,iSample] = mtrxData[iReplace,iSample] - 1
+          }
+        }
+      }
+    }
+  }
+  return( list( Data = mtrxData, LeftOver = vdLeftOver ) )
 }
 
 
-funcShuffleMatrix <- function(
+funcShuffleMatrix = function(
 ### Shuffle in left over singal into the matrix
 mtrxData,
 ### Matrix of values (rows are features, columns are samples)
@@ -2102,18 +2073,18 @@ multiplier,
 fZeroInflated = True
 ){
   # Get average and SD of each metadata
-  metadata_average <- funcGetRowMetric(vdCurMetadata,mean)
+  metadata_average = funcGetRowMetric(vdCurMetadata,mean)
   metadata_sigma = funcGetSD(vdCurMetadata)
 
   # Get the average and SD of the feature (ignoring zeros if zero inflated)
-  data_average <- mean(vdCurData[which(vdCurData>0)])
-  data_sigma <- sd(vdCurData[which(vdCurData>0)])
+  data_average = mean(vdCurData[which(vdCurData>0)])
+  data_sigma = sd(vdCurData[which(vdCurData>0)])
   if(is.na(data_sigma)){return(NULL)}
 
   if(!fZeroInflated)
   {
-    data_average <- mean(vdCurData)
-    data_sigma <- sd(vdCurData)
+    data_average = mean(vdCurData)
+    data_sigma = sd(vdCurData)
   }
 
   # Feature as occurence (0,1)
@@ -2128,7 +2099,7 @@ fZeroInflated = True
 
   # Spike in the feature with the metadata (multivariate_parameter == 1 means 1 metadata spike-in for the feature)
   # Make the scaled metadata
-  scaled_metadata <- (vdCurMetadata - metadata_average)/metadata_sigma
+  scaled_metadata = (vdCurMetadata - metadata_average)/metadata_sigma
   if(data_sigma!=0){ scaled_metadata = scaled_metadata * data_sigma }
   scaled_metadata = scaled_metadata + data_average
   if(!(is.null(nrow(vdCurMetadata))||(nrow(vdCurMetadata)==1)))
@@ -2145,7 +2116,7 @@ fZeroInflated = True
   return(vdSpikedBug)
 }
 
-
+# 4 Tests 9/4/2013
 funcTruncatedRLNorm = function(
 ### Return draws from a random log normal distribution with a truncated tail so outliers are not introduced.
 iNumberMeasurements,
@@ -2178,15 +2149,16 @@ iThreshold = NA
       vdFeature[viOutliers] = iThreshold
     }
   }
-
   #Truncate negatives to zero
   vdFeature[vdFeature<0] = 0
 
   return(list(Feature=vdFeature, LeftOver=vdDifference))
+### vdFeature: The signal (optionally truncated, log normal distribution)
+### vdDifference: Left over signal that was reomved from the original vdFeature
 }
 
 
-funcZeroCorrectMatrix <- function(
+funcZeroCorrectMatrix = function(
 ### Make sure there are no samples which sum to zero
 ### If there are take a measurement from a sample in the sample feature
 ### And adjust the left over values for read depth adjustments.
@@ -2224,7 +2196,7 @@ vdLeftOver
 
       # Incase there are less features than samples shift the indices so that the features
       # are cycled through the correct amount of times (which == the # samples)
-      vdFeatureIndices = funcCycleVectorIndexes(iElementsToPick=length(vdZeroReadDepth), iVectorLength=length(viFeaturesOrder))
+      vdFeatureIndices = funcCycleVectorIndices(iElementsToPick=length(vdZeroReadDepth), iVectorLength=length(viFeaturesOrder))
 
       # For each zero sample
       for(iSampleIndex in 1:length(vdZeroReadDepth))
@@ -2276,8 +2248,8 @@ vdLeftOver
 }
 
 
-#!# TODO Adds artifacts to the data
-func_zero_inflate <- function(
+# 9 Tests 9/4/2013
+func_zero_inflate = function(
 ### Create a zero inflated log normal distribution with a specified mean and percentage of zeros.
 ### If you want to get the original values of mu and sd used in rlnorm, use mean(log(func_zero_inflate()))
 ### and sd(log(func_zero_inflate()))
@@ -2293,20 +2265,20 @@ iThreshold = NA
 ### The threshold for outliers
 ){
   # Get feature given distribution parameters
-  lFeatureData = funcTruncatedRLNorm(int_number_samples, dMean, dSD, iThreshold=iThreshold)
+  lFeatureData = funcTruncatedRLNorm( int_number_samples, dMean, dSD, iThreshold = iThreshold )
   vdFeature = lFeatureData$Feature
 
   # Zero inlate and store removed signal to the left over storage vector
-  viZeroLocations = sample(1:int_number_samples, floor(int_number_samples*dPercentZeroInflated), replace=FALSE)
+  viZeroLocations = sample( 1:int_number_samples, floor( int_number_samples * dPercentZeroInflated ), replace = FALSE )
   vdLeftOver = lFeatureData$LeftOver
-  if(length(viZeroLocations))
+  if( length( viZeroLocations ) )
   {
-    vdLeftOver[viZeroLocations] = vdLeftOver[viZeroLocations]+vdFeature[viZeroLocations]
-    vdFeature[viZeroLocations] = 0
+    vdLeftOver[ viZeroLocations ] = vdLeftOver[ viZeroLocations ] + vdFeature[ viZeroLocations ]
+    vdFeature[ viZeroLocations ] = 0
   }
 
   # Return zero-inflated truncated lognormal feature with left over signal to later be shuffled back in.
-  return(list(Feature = vdFeature, LeftOver = vdLeftOver))
+  return( list( Feature = vdFeature, LeftOver = vdLeftOver ) )
 }
 
 
@@ -2344,24 +2316,24 @@ pArgs
 ){
 lxArgs = parse_args(pArgs,positional_arguments = TRUE)
 
-options <- lxArgs[['options']]
-seed <- options[['seed']]
-lefse_file <- options[['lefse_file']]
-int_base_metadata_number <- options[['number_metadata']]
+options = lxArgs[['options']]
+seed = options[['seed']]
+lefse_file = options[['lefse_file']]
+int_base_metadata_number = options[['number_metadata']]
 if(int_base_metadata_number<1) stop("Please provide the base number for metadata generation as 1 or greater.")
-int_number_features <- options[['number_features']]
+int_number_features = options[['number_features']]
 if(int_number_features<1) stop("Please provide a number of features of atleast 1")
-int_number_samples <- options[['number_samples']]
+int_number_samples = options[['number_samples']]
 if(int_number_samples<1) stop("Please provide a number of samples of atleast 1")
-dPercentOutliers <- options[['max_percent_outliers']]
+dPercentOutliers = options[['max_percent_outliers']]
 if( (dPercentOutliers>1) | (dPercentOutliers<0) ) stop("Please provide a percent outliers in the range of 0 to 1")
-dPercentOutlierSpikins <- options[['percent_outlier_spikins']]
+dPercentOutlierSpikins = options[['percent_outlier_spikins']]
 if( (dPercentOutlierSpikins>1) | (dPercentOutlierSpikins<0) ) stop("Please provide a percent spikins in the range of 0 to 1")
 iReadDepth = options[['read_depth']]
 if(iReadDepth < max(int_number_features, int_number_samples)) stop("Please provide a read depth of atleast equal to feature size or sample size (which ever is larger)")
-int_max_multiplier_range <- options[['int_max_multiplier_range']]
-int_min_multiplier_range <- options[['int_min_multiplier_range']]
-int_multiplier_delta <- abs(options[['int_multiplier_delta']])
+int_max_multiplier_range = options[['int_max_multiplier_range']]
+int_min_multiplier_range = options[['int_min_multiplier_range']]
+int_multiplier_delta = abs(options[['int_multiplier_delta']])
 if(int_max_multiplier_range<int_min_multiplier_range)
 {
   iTemp = int_min_multiplier_range
@@ -2369,15 +2341,15 @@ if(int_max_multiplier_range<int_min_multiplier_range)
   int_max_multiplier_range = iTemp
 }
 if(int_min_multiplier_range<=0)stop("Please provide make sure the smallest value in the multiplier range is greater than 0.")
-collinear_range <- options[['collinear_range']]
+collinear_range = options[['collinear_range']]
 if(collinear_range < 1) stop("Please provide a collinear increment greater than or equal to 1")
-collinear_increment <- options[['collinear_increment']]
+collinear_increment = options[['collinear_increment']]
 if(collinear_increment < 0) stop("Please provide a collinear increment greater than 0")
-iNumAssociations <- options[['bug_to_spike']]
+iNumAssociations = options[['bug_to_spike']]
 if(iNumAssociations<0) stop("Please provide a number of associations (bug-bug correlation) greater than or equal to 0")
-dVarScale <-options[['variance_scale']]
-iMaxNumberCorrDomainBugs <- options[['max_domain_bugs']]
-dPercentMultSpiked <- options[['percent_spiked']]
+dVarScale =options[['variance_scale']]
+iMaxNumberCorrDomainBugs = options[['max_domain_bugs']]
+dPercentMultSpiked = options[['percent_spiked']]
 if( (dPercentMultSpiked>1) | (dPercentMultSpiked<0) ) stop("Please provide a percent multivariate spike in the range of 0 to 1")
 strCalibrationFile = options[['calibrate']]
 dMinLevelCountPercent = options[['minLevelPercent']]
@@ -2393,13 +2365,15 @@ if(dMinOccurenceSample>int_number_samples)
 }
 fVerbose = options[['verbose']]
 fZeroInflate = !options[['noZeroInflate']]
+print("%%%%% fZeroInflate")
+print(fZeroInflate)
 
 # locational arguments
-file_names <- lxArgs[['args']]
-strNormalizedFileName <- file_names[1]
+file_names = lxArgs[['args']]
+strNormalizedFileName = file_names[1]
 strCountFileName = file_names[2]
-parameter_filename <- file_names[3]
-strBugBugInteractionFile <- file_names[4]
+parameter_filename = file_names[3]
+strBugBugInteractionFile = file_names[4]
 if(is.na(strNormalizedFileName))
 {
   strNormalizedFileName = "SyntheticMicrobiome.pcl"
@@ -2424,7 +2398,7 @@ vParametersAssociations = c()
 list_of_bugs = list()
 
 # generate the metadata
-lsMetadataInfo <- func_generate_metadata(int_base_metadata_number,int_number_samples,dMinLevelCountPercent)
+lsMetadataInfo = func_generate_metadata(int_base_metadata_number,int_number_samples,dMinLevelCountPercent)
 mat_metadata =  lsMetadataInfo[["mat_metadata"]]
 metadata_parameters = lsMetadataInfo[["mtrxParameters"]]
 vParametersAssociations = c(vParametersAssociations,lsMetadataInfo[["mtrxParameters"]])
@@ -2437,51 +2411,40 @@ vdMu = NA
 vdSD = NA
 vdPercentZero = NA
 dSDBeta = c_dSDBeta
-dSDIntercept = c_dSDIntercept
 dBetaZero = c_dBetaZero
-dGrandMu = c_dGrandMu
-dGrandSD = c_dGrandSD
-dInterceptZero = c_dZeroIntercept
 dGrandBeta = c_dBetaGrandSD
-dGrandIntercept = c_dInterceptGrandSD
-# dMaxCount = iReadDepth
 
 print("Parameters BEFORE Calibration File")
-print(paste("Length exp",length(vdExp),"Length vdMu", length(vdMu), "length vdSD", length(vdSD), "length vdPercentZero", length(vdPercentZero), "dSDBeta", dSDBeta,"dSDIntercept", dSDIntercept,"dBetaZero", dBetaZero, "dGrandMu", dGrandMu, "dGrandSD", dGrandSD, "dInterceptZero", dInterceptZero, "dGrandBeta", dGrandBeta, "dGrandIntercept", dGrandIntercept, "Read depth", iReadDepth))
+print(paste("Length exp",NA,"Length vdMu", NA, "length vdSD", NA, "length vdPercentZero", NA, "dSDBeta", dSDBeta,"dBetaZero", dBetaZero, "dGrandBeta", dGrandBeta, "Read depth", iReadDepth))
 
 if(!is.na(strCalibrationFile) & (strCalibrationFile!="NA"))
 {
   # Get the fit for the data
   print("Calibrating...")
   lsFit = funcCalibrateRLNormToMicrobiome(strCalibrationFile,fVerbose)
-#  print("lsFit")
-#  print(lsFit)
+  print("lsFit")
+  print(lsFit)
   vdExp = lsFit[["exp"]]
   vdMu = lsFit[["mu"]]
   vdSD = lsFit[["sd"]]
   vdPercentZero = lsFit[["percentZero"]]
-  dInterceptZero = lsFit[["dZeroIntercept"]]
   dSDBeta  = lsFit[["dSDBeta"]]
-  dSDIntercept  = lsFit[["dSDIntercept"]]
   dBetaZero = lsFit[["dZeroBeta"]]
-  dGrandMu = lsFit[["dGrandMu"]]
-  dGrandSD = lsFit[["dGrandSD"]]
   dGrandBeta = lsFit[["dGrandBeta"]]
-  dGrandIntercept = lsFit[["dGrandIntercept"]]
   iReadDepth = lsFit[["dAverageReadDepth"]]
-  int_number_features = lsFit[["iFeatureCount"]]
+#  int_number_features = lsFit[["iFeatureCount"]]
 #  dMaxCount = lsFit[["dMaxCount"]]
 }
 print("Parameters AFTER Calibration File (if no calibration file is used, defaults are shown")
-print(paste("Length exp",length(vdExp),"Length vdMu", length(vdMu), "length vdSD", length(vdSD), "length vdPercentZero", length(vdPercentZero), "dSDBeta", dSDBeta,"dSDIntercept", dSDIntercept,"dBetaZero", dBetaZero, "dGrandMu", dGrandMu, "dGrandSD", dGrandSD, "dInterceptZero", dInterceptZero, "dGrandBeta", dGrandBeta, "dGrandIntercept", dGrandIntercept, "Read depth", iReadDepth))
+print(paste("Length exp",length(vdExp),"Length vdMu", length(vdMu), "length vdSD", length(vdSD), "length vdPercentZero", length(vdPercentZero), "dSDBeta", dSDBeta,"dBetaZero", dBetaZero, "dGrandBeta", dGrandBeta, "Read depth", iReadDepth))
 
-mat_random_lognormal_bugs = func_generate_random_lognormal_matrix(int_number_features=int_number_features, int_number_samples=int_number_samples, iMinNumberCounts=dMinOccurenceCount, iMinNumberSamples=dMinOccurenceSample, iReadDepth=iReadDepth, vdExp=vdExp, vdMu=vdMu, xPercentZero=vdPercentZero, vdSD=vdSD, fZeroInflate=fZeroInflate, dBetaSD=dSDBeta, dSDIntercept=dSDIntercept, dBetaZero=dBetaZero, dInterceptZero=dInterceptZero, dBetaGrandSD=dGrandBeta, dInterceptGrandSD=dGrandIntercept, fVerbose=fVerbose)
+mat_random_lognormal_bugs = func_generate_random_lognormal_matrix(int_number_features=int_number_features, int_number_samples=int_number_samples, iMinNumberCounts=dMinOccurenceCount, iMinNumberSamples=dMinOccurenceSample, iReadDepth=iReadDepth, vdExp=vdExp, vdMu=vdMu, xPercentZero=vdPercentZero, vdSD=vdSD, fZeroInflate=fZeroInflate, dBetaSD=dSDBeta,  dBetaZero=dBetaZero, dBetaGrandSD=dGrandBeta, fVerbose=fVerbose)
 
 lefse_lognormal = NULL
 if(!is.null(lefse_file))
 {
   lefse_file = dirname(lefse_file)
-  lefse_lognormal <- func_generate_lefse_matrices(lefse_file, metadata_parameters, int_number_features, int_number_samples,mat_metadata, mat_random_lognormal_bugs[['mat_bugs']], 'lognormal')
+  lefse_lognormal = func_generate_lefse_matrices(lefse_file, metadata_parameters, int_number_features, int_number_samples,mat_metadata, mat_random_lognormal_bugs[['mat_bugs']], 'lognormal')
 }
 
 vParametersAssociations = c(vParametersAssociations,mat_random_lognormal_bugs[["mtrxParameters"]])
@@ -2491,11 +2454,11 @@ dev.off()
 
 # generate random lognormal with outliers
 pdf(file.path(dirname(strCountFileName),"LognormalWithOutliers.pdf"), useDingbats=FALSE)
-mat_random_lognormal_outliers_bugs <- func_generate_random_lognormal_with_outliers(int_number_features=int_number_features, int_number_samples=int_number_samples,dMaxPercentOutliers=dPercentOutliers,dPercentSamples=dPercentOutlierSpikins,mtrxBugs=mat_random_lognormal_bugs[["mat_bugs"]],fVerbose=fVerbose)
+mat_random_lognormal_outliers_bugs = func_generate_random_lognormal_with_outliers(int_number_features=int_number_features, int_number_samples=int_number_samples,dMaxPercentOutliers=dPercentOutliers,dPercentSamples=dPercentOutlierSpikins,mtrxBugs=mat_random_lognormal_bugs[["mat_bugs"]],fVerbose=fVerbose)
 lefse_outliers = NULL
 if(!is.null(lefse_file))
 {
-  lefse_outliers <- func_generate_lefse_matrices(lefse_file, metadata_parameters,int_number_features,int_number_samples,mat_metadata, mat_random_lognormal_outliers_bugs[['mat_bugs']], 'outliers')
+  lefse_outliers = func_generate_lefse_matrices(lefse_file, metadata_parameters,int_number_features,int_number_samples,mat_metadata, mat_random_lognormal_outliers_bugs[['mat_bugs']], 'outliers')
 }
 vParametersAssociations = c(vParametersAssociations,mat_random_lognormal_outliers_bugs[["mtrxParameters"]])
 list_of_bugs[[length(list_of_bugs) + 1]] = mat_random_lognormal_outliers_bugs[["mat_bugs"]]
@@ -2518,19 +2481,19 @@ for (how_many_multivariates in seq(1,collinear_range,collinear_increment))
   for (mult in seq(int_min_multiplier_range, int_max_multiplier_range, int_multiplier_delta))
   {
     pdf(file.path(dirname(strCountFileName),paste("SpikeIn_n_", how_many_multivariates,"_m_", mult,".pdf",sep="")), useDingbats=FALSE)
-    mat_random_lognormal_multivariate_spikes <- func_generate_random_lognormal_with_multivariate_spikes(int_number_features=int_number_features, int_number_samples=int_number_samples,  percent_spikes=dPercentMultSpiked, multiplier=mult, metadata_matrix=mat_metadata, multivariate_parameter=how_many_multivariates, dMinLevelCountPercent=dMinLevelCountPercent, mtrxBugs=mat_random_lognormal_bugs[["mat_bugs"]],fZeroInflated=fZeroInflate, lviFrozeMetadataIndices=lviMetadata, liFrozeDataIndicies=liData, lsFrozeLevels=lsLevels, fVerbose=fVerbose)
-    mat_random_lognormal_multivariate_spikes_bugs <- mat_random_lognormal_multivariate_spikes[["mat_bugs"]]
-    lviMetadata <- mat_random_lognormal_multivariate_spikes[["MetadataIndices"]]
-    liData <- mat_random_lognormal_multivariate_spikes[["DataIndices"]]
-    lsLevels <- mat_random_lognormal_multivariate_spikes[["Levels"]]
+    mat_random_lognormal_multivariate_spikes = func_generate_random_lognormal_with_multivariate_spikes(int_number_features=int_number_features, int_number_samples=int_number_samples,  percent_spikes=dPercentMultSpiked, multiplier=mult, metadata_matrix=mat_metadata, multivariate_parameter=how_many_multivariates, dMinLevelCountPercent=dMinLevelCountPercent, mtrxBugs=mat_random_lognormal_bugs[["mat_bugs"]],fZeroInflated=fZeroInflate, lviFrozeMetadataIndices=lviMetadata, liFrozeDataIndicies=liData, lsFrozeLevels=lsLevels, fVerbose=fVerbose)
+    mat_random_lognormal_multivariate_spikes_bugs = mat_random_lognormal_multivariate_spikes[["mat_bugs"]]
+    lviMetadata = mat_random_lognormal_multivariate_spikes[["MetadataIndices"]]
+    liData = mat_random_lognormal_multivariate_spikes[["DataIndices"]]
+    lsLevels = mat_random_lognormal_multivariate_spikes[["Levels"]]
 
     if(!is.null(lefse_file))
     {
-      lefse_spike <- func_generate_lefse_matrices(lefse_file, metadata_parameters,int_number_features,int_number_samples,mat_metadata, mat_random_lognormal_multivariate_spikes_bugs, paste('multivariate_n_', how_many_multivariates, '_m_', mult,sep=""))
+      lefse_spike = func_generate_lefse_matrices(lefse_file, metadata_parameters,int_number_features,int_number_samples,mat_metadata, mat_random_lognormal_multivariate_spikes_bugs, paste('multivariate_n_', how_many_multivariates, '_m_', mult,sep=""))
     }
     # generate known associations for random lognormal with spikes
     vParametersAssociations = c(vParametersAssociations,mat_random_lognormal_multivariate_spikes[["m_parameter_rec"]])
-    list_of_bugs[[length(list_of_bugs)+1]] <- mat_random_lognormal_multivariate_spikes_bugs
+    list_of_bugs[[length(list_of_bugs)+1]] = mat_random_lognormal_multivariate_spikes_bugs
     lsMicrobiomeKeys[[length(lsMicrobiomeKeys)+1]] = paste(c_strSpike,"n",how_many_multivariates,"m",sub(".","_",paste(mult),fixed=TRUE), sep="_")
 
     hist(as.vector(mat_random_lognormal_multivariate_spikes_bugs), main=paste("Final: Spiked matrix n_", how_many_multivariates,"_m_", mult,sep=""))
@@ -2539,19 +2502,19 @@ for (how_many_multivariates in seq(1,collinear_range,collinear_increment))
 }
 
 # Add bug associated bug microbiome
-lsBugBugInfo = func_generate_bug_bug_spiking_matrix(int_number_features=int_number_features, int_number_samples=int_number_samples, iMinNumberSamples=dMinOccurenceSample, iReadDepth=iReadDepth, iMinNumberCounts=dMinOccurenceCount, vdExp=vdExp, vdMu=vdMu, vdSD=vdSD, dPercentZero=vdPercentZero, fZeroInflate=fZeroInflate, dBetaSD=dSDBeta, dSDIntercept=dSDIntercept, dBetaZero=dBetaZero, fVerbose=fVerbose, dVarScale=dVarScale,iNumAssociations=iNumAssociations,iMaxNumberCorrDomainBugs=iMaxNumberCorrDomainBugs)
+lsBugBugInfo = func_generate_bug_bug_spiking_matrix(int_number_features=int_number_features, int_number_samples=int_number_samples, iMinNumberSamples=dMinOccurenceSample, iReadDepth=iReadDepth, iMinNumberCounts=dMinOccurenceCount, vdExp=vdExp, vdMu=vdMu, vdSD=vdSD, dPercentZero=vdPercentZero, fZeroInflate=fZeroInflate, dBetaSD=dSDBeta, dBetaZero=dBetaZero, fVerbose=fVerbose, dVarScale=dVarScale,iNumAssociations=iNumAssociations,iMaxNumberCorrDomainBugs=iMaxNumberCorrDomainBugs)
 list_of_bugs[[length(list_of_bugs)+1]] = lsBugBugInfo[["mtrxBugs"]]
 vParametersAssociations = c(vParametersAssociations,lsBugBugInfo[["vStrParameters"]])
 lsMicrobiomeKeys[[length(lsMicrobiomeKeys)+1]] = c_strBugBugAssocations
 
 # preallocate final pcl  matrix
-final_matrix <- matrix(data=NA,nrow=(number_metadata+int_number_features*length(list_of_bugs))+1, ncol=(int_number_samples+1))
+final_matrix = matrix(data=NA,nrow=(number_metadata+int_number_features*length(list_of_bugs))+1, ncol=(int_number_samples+1))
 final_matrix[1,1] = '#SampleID'
-final_matrix[1,2:(int_number_samples + 1)] <- paste('Sample',1:int_number_samples,sep='')
-final_matrix[2:(number_metadata+1),1] <- paste(c_strMetadata,1:number_metadata,sep='')
+final_matrix[1,2:(int_number_samples + 1)] = paste('Sample',1:int_number_samples,sep='')
+final_matrix[2:(number_metadata+1),1] = paste(c_strMetadata,1:number_metadata,sep='')
 vdDim = dim(mat_metadata)
 mat_metadata[(floor(vdDim[1]/2)+1):vdDim[1],] = paste("Group_",mat_metadata[(floor(vdDim[1]/2)+1):vdDim[1],],sep="")
-final_matrix[2:(number_metadata+1),2:(int_number_samples+1)] <- mat_metadata
+final_matrix[2:(number_metadata+1),2:(int_number_samples+1)] = mat_metadata
 
 # Make a matrix for counts (use the other for normalized)
 mtrxFinalCounts = final_matrix
@@ -2562,11 +2525,11 @@ iFirstData = start
 
 for(iMatIndex in 1:length(list_of_bugs))
 {
-  final_matrix[start:end,1] <- paste(paste(c_strFeature,lsMicrobiomeKeys[iMatIndex],sep="_"),1:int_number_features,sep='_')
+  final_matrix[start:end,1] = paste(paste(c_strFeature,lsMicrobiomeKeys[iMatIndex],sep="_"),1:int_number_features,sep='_')
   # Normalize each column by thier sum and add to output
-  final_matrix[start:end,2:(int_number_samples+1)] <- funcNormalizeMicrobiome(list_of_bugs[[iMatIndex]])
-  mtrxFinalCounts[start:end,1] <- paste(paste(c_strFeature,lsMicrobiomeKeys[iMatIndex],sep="_"),1:int_number_features,sep='_')
-  mtrxFinalCounts[start:end,2:(int_number_samples+1)] <- list_of_bugs[[iMatIndex]]
+  final_matrix[start:end,2:(int_number_samples+1)] = funcNormalizeMicrobiome(list_of_bugs[[iMatIndex]])
+  mtrxFinalCounts[start:end,1] = paste(paste(c_strFeature,lsMicrobiomeKeys[iMatIndex],sep="_"),1:int_number_features,sep='_')
+  mtrxFinalCounts[start:end,2:(int_number_samples+1)] = list_of_bugs[[iMatIndex]]
   start = start + int_number_features
   end = end + int_number_features
 }
