@@ -804,6 +804,22 @@ test_that( "Test that funcTruncatedRLNorm creates an expected distribution witho
   expect_equal( 0, length( which( lResult$Feature > iThreshold ) ) )
 })
 
+### funcUpdateDistributionToSum
+vdDist1 = rlnorm( 10, log( 2 ), log( 3 ) )
+dSum1 = sum( vdDist1 )
+dTest1 = sum( round( funcUpdateDistributionToSum( vdDist1, floor( dSum1 + 10 ) ) ) )
+dTest2 = sum( round( funcUpdateDistributionToSum( vdDist1, floor( dSum1 - 10 ) ) ) )
+vdDist2 = rlnorm( 100, log( 2 ), log( 3 ) )
+dSum2 = sum( vdDist2 )
+dTest3 = sum( round( funcUpdateDistributionToSum( vdDist2, floor( dSum2 + 10 ) ) ) )
+dTest4 = sum( round( funcUpdateDistributionToSum( vdDist2, floor( dSum2 - 10 ) ) ) )
+test_that( "Test that the funcUpdateDistributionToSum, updates distributions to the correct sum."{
+  expect_true( ( dTest1 > floor( dSum1 + 10 ) - 1 ) and ( dTest1 > floor( dSum1 + 10 ) + 1 ) )
+  expect_true( ( dTest2 > floor( dSum1 - 10 ) - 1 ) and ( dTest2 > floor( dSum1 - 10 ) + 1 ) )
+  expect_true( ( dTest3 > floor( dSum1 + 10 ) - 1 ) and ( dTest3 > floor( dSum1 + 10 ) + 1 ) )
+  expect_true( ( dTest4 > floor( dSum1 - 10 ) - 1 ) and ( dTest4 > floor( dSum1 - 10 ) + 1 ) )
+}),
+
 ### funcZeroCorrectMatrix
 mtrxShuffle = matrix( 1:10, ncol = 10, nrow = 10 )
 mtrxResult = funcZeroCorrectMatrix( mtrxShuffle, funcGetRowMetric( mtrxShuffle, mean ), c() )
