@@ -990,21 +990,23 @@ fVerbose = FALSE
 
   # Preallocating for speed
   mat_bugs = matrix(data=NA,nrow=int_number_features,ncol=int_number_samples)
+  mtrxWithLeftOver = matrix(data=NA,nrow=int_number_features,ncol=int_number_samples)
   # Get the initial mu vector for generating features.
   lsInitialDistribution = funcGenerateFeatureParameters(int_number_features=int_number_features, int_number_samples=int_number_samples, iMinNumberSamples=iMinNumberSamples, iReadDepth=iReadDepth, vdExp=vdExp, vdMu=vdMu, vdSD=vdSD, vdPercentZero=vdPercentZero, lSDRel, lPercentZeroRel, dBetaGrandSD = dBetaGrandSD, fVerbose=fVerbose)
 
-#  pdf("Check2.pdf")
-#  plot(sort(c_vdExpLog), sort(log(lsInitialDistribution$exp)))
-#  plot(sort(log(lsInitialDistribution$exp)),main="Exp")
-#  plot(sort(c_vdSD), sort(log(lsInitialDistribution$sd)), main="SD")
-#  plot(sort(c_vdPercentZero), sort(lsInitialDistribution$PercentZero),main="PercentZero")
-#  dev.off()
+  pdf("Check2.pdf")
+  plot(sort(c_vdExpLog), sort(log(lsInitialDistribution$exp)))
+  plot(sort(log(lsInitialDistribution$exp)),main="Exp")
+  plot(sort(c_vdSD), sort(log(lsInitialDistribution$sd)), main="SD")
+  plot(sort(c_vdPercentZero), sort(lsInitialDistribution$PercentZero),main="PercentZero")
 
   # Update the Mu, SD and Percent zero bugs and report on distributions
   vdMu = lsInitialDistribution[["mu"]]
   vdSD = lsInitialDistribution[["sd"]]
   vdPercentZero = lsInitialDistribution[["PercentZero"]]
   vdExp = lsInitialDistribution[["exp"]]
+
+  plot(vdExp, funcGetExp(vdMu,vdSD), main="Check vdMu and vdSD pair")
 
   # TODO remove
   if(c_dfFreezeSDFeatures)
@@ -1025,24 +1027,50 @@ fVerbose = FALSE
 
   # Make features and assign feature samples to samples giving higher counts to lower read depth samples.
   print("func_generate_random_lognormal_matrix: START Making features")
+  #!# Remove
+  vdExpF = c()
+  vdExpDifF = c()
+  ###
   for(iReset in 1:int_number_features)
   {
+    print(paste("feature",iReset))
     # Create new feature
     lFeatureDetails = funcMakeFeature(dMu=vdMu[iReset], dSD=vdSD[iReset], dPercentZero=vdPercentZero[iReset], iNumberSamples=int_number_samples, iMinNumberCounts=iMinNumberCounts, iMinNumberSamples=iMinNumberSamples, dTruncateThreshold=(c_iTimesSDIsOutlier*vdSD[iReset])+vdMu[iReset], fZeroInflate=fZeroInflate, fVerbose=fVerbose )
+
+    #!# Remove
+    print("lFeatureDetails")
+    print(lFeatureDetails)
+    vdExpF = c( vdExpF, lFeatureDetails$Exp )
+    vdExpDifF = c( vdExpDifF, lFeatureDetails$Exp-lFeatureDetails$ExpCal )
+    ####
 
     # Store the left over counts per sample
     vdLeftOver = vdLeftOver + lFeatureDetails$LeftOver
 
     # Update the matrix with the new feature
+    #!# remove leftover
     mat_bugs[iReset,] = lFeatureDetails$Feature
+    mtrxWithLeftOver[iReset,] = lFeatureDetails$Feature + lFeatureDetails$LeftOver
   }
   print("func_generate_random_lognormal_matrix: Made features")
+  print("vdLeftOver")
+  print(vdLeftOver)
+
+  #!# Remove
+  plot(vdExp, funcGetRowMetric(mat_bugs,mean), main = "Expected vs Actual Read Depth: Initial")
+  plot(vdExp, funcGetRowMetric(mtrxWithLeftOver,mean), main = "Expected vs Actual Read Depth: Initial mtrxWithLeftOver")
+  plot(log(vdExp), log(funcGetRowMetric(mat_bugs,mean)), main = "Expected vs Actual Read Depth: Initial logged")
+  plot(log(vdExp), log(funcGetRowMetric(mtrxWithLeftOver,mean)), main = "Expected vs Actual Read Depth: Initial mtrxWithLeftOver logged")
+  plot(vdExpF, vdExpDifF/vdExpF, main = "Expected vs Actual Read Depth: Mean vs the Difference in exp")
+  ####
 
   # Remove any fully zero sample
   lZeroCorrectionResults = funcZeroCorrectMatrix(mtrxData=mat_bugs, vdFeatureMus=vdExp, vdLeftOver=vdLeftOver)
   mat_bugs = lZeroCorrectionResults[["Data"]]
   vdLeftOver = lZeroCorrectionResults[["LeftOver"]]
   print("func_generate_random_lognormal_matrix: Zero corrected")  
+
+  plot(vdExp, funcGetRowMetric(mat_bugs,mean), main = "Expected vs Actual Read Depth: AfterZeroCorrect")
 
   # Allow a function to be called to manipulate the matrix before updating to the read depth
 #  if( !is.na( funcUpdateData ) )
@@ -1055,6 +1083,8 @@ fVerbose = FALSE
   # Shuffle back in removed signal.
   mat_bugs = funcShuffleMatrix(mtrxData=mat_bugs, vdFeatureMus=vdMu, vdShuffleIn=vdLeftOver)
   print("func_generate_random_lognormal_matrix: Shuffled")
+
+  plot(vdExp, funcGetRowMetric(mat_bugs,mean), main = "Expected vs Actual Read Depth: After Shuffle")
 
   # Round to counts
   mat_bugs = funcRoundMatrix(mtrxData=mat_bugs)
@@ -1078,6 +1108,7 @@ fVerbose = FALSE
     print("Feature mean summary")
     print(summary(funcGetRowMetric(mat_bugs,mean)))
   }
+  dev.off()
 
   if(fVerbose)
   {
@@ -1707,13 +1738,12 @@ fVerbose = FALSE
   # Extra useful measurements, the true and expected means
   dMean = mean(dFeature)
   dExpCal = funcGetExp(dMu,dSD)
-  dExp = mean(dMu,dSD)
 
   if(fVerbose)
   {
-    plot( dFeature, main = paste("funcMakeFeature","Mean",round(dMean,2),"SD",round(sd(log(dFeature)),2),"Exp",round(dExp,2)))
+    plot( dFeature, main = paste("funcMakeFeature","Mean (",round(dMu,2),")",round(dMean,2),"SD(",round(dSD,2),")",round(sd(log(dFeature[which(dFeature>0)])),2),"Exp",round(dExpCal,2)))
   }
-  return(list(Feature=dFeature, Mean=dMean, Exp=dExp, ExpCal=dExpCal, LeftOver=dLeftOver))
+  return(list(Feature = dFeature, Exp = dMean, ExpCal = dExpCal, LeftOver = dLeftOver))
 }
 
 
@@ -2157,23 +2187,32 @@ iThreshold = NA
     viOutliers = which( vdFeature > iThreshold )
 
     # If there are outliers
-    # Change the outliers to the max
+    # Change the outliers to the mean of the draws before it is drawn (indices less than it's own)
     # and optionally shuffle back in the differences between the outliers and the max
     if( length( viOutliers ) )
     {
+      print("dMeanDraws")
+      print(paste("dLogMean",round(exp(dLogMean),2)))
+      print(paste("dLogSD",round(exp(dLogSD),2)))
+      vdMeanDraws = c()
       for( iIndex in viOutliers )
       {
-        vdDifference[ viOutliers ] = vdFeature[ viOutliers ] - mean( vdDifference[ 1:iIndex ] )
-        vdFeature[ viOutliers ] = mean( vdDifference[ 1:iIndex ] )
+        dMeanDraws = mean( vdFeature[ sample( 1:iIndex, 2, replace = TRUE ) ] )
+        vdMeanDraws= c(vdMeanDraws, dMeanDraws)
+        vdDifference[ iIndex ] = vdFeature[ iIndex ] - dMeanDraws
+        vdFeature[ iIndex ] = dMeanDraws
       }
+      print(sort(vdMeanDraws))
     }
   }
   #Truncate negatives to zero
   vdFeature[ vdFeature < 0 ] = 0
 
+  print("vdFeature end trunc")
+  print(vdFeature)
   return(list(Feature=vdFeature, LeftOver=vdDifference))
 ### vdFeature: The signal (optionally truncated, log normal distribution)
-### vdDifference: Left over signal that was reomved from the original vdFeature
+### vdDifference: Left over signal that was removed from the original vdFeature
 }
 
 
@@ -2319,19 +2358,19 @@ func_zero_inflate = function(
 ### Create a zero inflated log normal distribution with a specified mean and percentage of zeros.
 ### If you want to get the original values of mu and sd used in rlnorm, use mean(log(func_zero_inflate()))
 ### and sd(log(func_zero_inflate()))
-dMean,
+dLogMean,
 ### Mean of the distribution (logged)
 dPercentZeroInflated,
 ### Percentage of return which is zero
 int_number_samples,
 ### The number of samples to create
-dSD,
+dLogSD,
 ### The sd of the distribution (logged)
 iThreshold = NA
 ### The threshold for outliers
 ){
   # Get feature given distribution parameters
-  lFeatureData = funcTruncatedRLNorm( int_number_samples, dMean, dSD, iThreshold = iThreshold )
+  lFeatureData = funcTruncatedRLNorm( int_number_samples, dLogMean, dLogSD, iThreshold = iThreshold )
   vdFeature = lFeatureData$Feature
 
   # Zero inlate and store removed signal to the left over storage vector
