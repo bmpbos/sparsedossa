@@ -393,6 +393,96 @@ dInterceptZero = 0
   ### Returns the Percent Zero (between 0 and 1) for a feature
 }
 
+
+funcForceMinCountsInMinSamples = function(
+### For a feature to pass the requirement of having a certain minimal count in a minimal number of samples
+vdFeature,
+### Vector of signal (integers). Same length as vdLeftOver.
+vdLeftOver,
+### Vector of left over signal to add in. Same length as vdLeftOver.
+iMinNumberCounts = 0,
+### Minimum number of counts for a sample to pass the filter
+iMinNumberSamples = 0
+### Min number of samples to have the minimum number of counts
+){
+  # Check to make sure there are enough none zeros to add signal to for the min number of samples
+  iNonZeroSamplesNeeded = min( 0, iMinNumberSamples - length( which( vdFeature == 0 ) ) )
+  if(iNonZeroSamplesNeeded > 0)
+  {
+    # If more samples are needed, add them back in as the mean and remove signal from the left over
+    dSignalMean = round( mean( vdFeature[ which( vdFeature > 0 ) ] ) )
+    viUpdate = sample( which( vdFeature == 0 ), iNonZeroSamplesNeeded )
+    vdFeature[ viUpdate ] = dSignalMean
+
+    # Try removing the signal from the appropriate LeftOver element
+    # If there is not enough left over to remove, keep and then remove randomly
+    dRandomRemove = 0
+    for( iUpdatedSample in viUpdate )
+    {
+      vdLeftOver[ iUpdatedSample ] = vdLeftOver[ iUpdatedSample ] - dSignalMean
+      if( vdLeftOver[ iUpdatedSample ] < 0 )
+      {
+        dRandomRemove = dRandomRemove + abs(vdLeftOver[ iUpdatedSample ])
+        vdLeftOver[ iUpdatedSample ] = 0
+      }
+    }
+    dRandomRemove = floor( dRandomRemove )
+    # Remove Randomly if needed
+    for( iCount in 1:dRandomRemove )
+    {
+      viNonZeroLeftOver = which( vdLeftOver > 0 )
+      if( length( viNonZeroLeftOver ) )
+      {
+        iRemoveCount = sample( viNonZeroLeftOver, 1)
+        vdLeftOver[ iRemoveCount ] = vdLeftOver[ iRemoveCount ] - 1
+      }
+    }
+  }
+
+  # Min is placed here because if you ask for 2 samples but this is evaluating to find atleast 3 samples at a certain level you will inf loop
+  # Look to see how many measurements are above the min.
+  # If there are not enough counts more the the min number of counts
+  # then inflate the distribution up until there is enough counts.
+  iNeededExtraValues = iMinNumberSamples - length( which( vdFeature >= iMinNumberCounts ) )
+
+  # Probability for each sample to get a count is based on it's current percentage of samples (multinomial distribution)
+  vdProbabilities = vdFeature / sum( vdFeature )
+
+  # Keep adding left over to the distribution until you have samples above the min count.
+  # Keep going even if you run out of LeftOver
+  # Add and remove counts to indices that are not zero
+  viAddIndices = which( vdFeature > 0 )
+  viRemoveFromLeftOverIndices = which( vdLeftOver > 0 )
+
+  # While we need to add counts
+  while( iNeededExtraValues > 0 )
+  {
+    # Index to add to, if multiple possibilities, select using the current percentage counts.
+    iIndexAdd = viAddIndices
+    if( length( iIndexAdd ) > 1 )
+    {
+      iIndexAdd = sample( viAddIndices, 1, prob = vdProbabilities[ viAddIndices ] )
+    }
+
+    vdFeature[ iIndexAdd ] = vdFeature[ iIndexAdd ] + 1
+    iNeededExtraValues = iMinNumberSamples - length( which( vdFeature >= iMinNumberCounts ) )
+
+    # Remove a count from Left Over, select using the current percentage counts.
+    if( length(viRemoveFromLeftOverIndices) > 1 )
+    {
+      viRemoveFromLeftOverIndices = sample( viRemoveFromLeftOverIndices, 1, prob = vdLeftOver[ viRemoveFromLeftOverIndices ] / sum( vdLeftOver[ viRemoveFromLeftOverIndices ] ) )
+    }
+    if( length( viRemoveFromLeftOverIndices == 1 ) )
+    {
+      vdLeftOver[ viRemoveFromLeftOverIndices ] = vdLeftOver[ viRemoveFromLeftOverIndices ] - 1
+      vdLeftOver[ vdLeftOver < 0 ] = 0
+      viRemoveFromLeftOverIndices = which( vdLeftOver > 0 )
+    }
+  }
+  return( list( Feature = vdFeature, LeftOver = vdLeftOver) )
+}
+
+
 # 2 Tests 9/4/2013
 funcGenerateExpVectorParameters = function(
 ### Get the point estimate for the relationship between the mu and sd
@@ -1027,10 +1117,6 @@ fVerbose = FALSE
 
   # Make features and assign feature samples to samples giving higher counts to lower read depth samples.
   print("func_generate_random_lognormal_matrix: START Making features")
-  #!# Remove
-  vdExpF = c()
-  vdExpDifF = c()
-  ###
   for(iReset in 1:int_number_features)
   {
     print(paste("feature",iReset))
@@ -1038,10 +1124,8 @@ fVerbose = FALSE
     lFeatureDetails = funcMakeFeature(dMu=vdMu[iReset], dSD=vdSD[iReset], dPercentZero=vdPercentZero[iReset], iNumberSamples=int_number_samples, iMinNumberCounts=iMinNumberCounts, iMinNumberSamples=iMinNumberSamples, dTruncateThreshold=(c_iTimesSDIsOutlier*vdSD[iReset])+vdMu[iReset], fZeroInflate=fZeroInflate, fVerbose=fVerbose )
 
     #!# Remove
-    print("lFeatureDetails")
-    print(lFeatureDetails)
-    vdExpF = c( vdExpF, lFeatureDetails$Exp )
-    vdExpDifF = c( vdExpDifF, lFeatureDetails$Exp-lFeatureDetails$ExpCal )
+#    print("lFeatureDetails")
+#    print(lFeatureDetails)
     ####
 
     # Store the left over counts per sample
@@ -1061,7 +1145,6 @@ fVerbose = FALSE
   plot(vdExp, funcGetRowMetric(mtrxWithLeftOver,mean), main = "Expected vs Actual Read Depth: Initial mtrxWithLeftOver")
   plot(log(vdExp), log(funcGetRowMetric(mat_bugs,mean)), main = "Expected vs Actual Read Depth: Initial logged")
   plot(log(vdExp), log(funcGetRowMetric(mtrxWithLeftOver,mean)), main = "Expected vs Actual Read Depth: Initial mtrxWithLeftOver logged")
-  plot(vdExpF, vdExpDifF/vdExpF, main = "Expected vs Actual Read Depth: Mean vs the Difference in exp")
   ####
 
   # Remove any fully zero sample
@@ -1078,11 +1161,9 @@ fVerbose = FALSE
 #    params = funcUpdateData( params )
 #  }
 
-  # Call back to 
-
   # Shuffle back in removed signal.
-  mat_bugs = funcShuffleMatrix(mtrxData=mat_bugs, vdFeatureMus=vdMu, vdShuffleIn=vdLeftOver)
-  print("func_generate_random_lognormal_matrix: Shuffled")
+#  mat_bugs = funcShuffleMatrix(mtrxData=mat_bugs, vdFeatureMus=vdMu, vdShuffleIn=vdLeftOver)
+#  print("func_generate_random_lognormal_matrix: Shuffled")
 
   plot(vdExp, funcGetRowMetric(mat_bugs,mean), main = "Expected vs Actual Read Depth: After Shuffle")
 
@@ -1655,89 +1736,24 @@ fVerbose = FALSE
   # If not zero inflated
   if(!fZeroInflate){dPercentZero = 0}
 
+  # Expectation of the feature
+  dExpCal = funcGetExp(dMu,dSD)
+
   # Generate feature
   lFeatureData = func_zero_inflate(log(dMu), dPercentZero, iNumberSamples, log(dSD), dTruncateThreshold)
   dFeature = lFeatureData$Feature
   dLeftOver = lFeatureData$LeftOver
 
-  # Check to make sure there are enough none zeros to add signal to for the min number of samples
-  iNonZeroSamplesNeeded = min( 0, iNumberSamples - length( which( dFeature == 0 ) ) )
-  if(iNonZeroSamplesNeeded > 0)
-  {
-    # If more samples are needed, add them back in as the mean and remove signal from the left over
-    dSignalMean = round( mean( dFeature[ which( dFeature > 0 ) ] ) )
-    viUpdate = sample( which( dFeature == 0 ), iNonZeroSamplesNeeded )
-    dFeature[ viUpdate ] = dSignalMean
+  # Update the distributions to the targeted expectations
+  lsShiftResults = funcUpdateDistributionToExpectation( vdFeatures = dFeature, vdLeftOver = dLeftOver, dExp = dExpCal )
+  dFeature = lsShiftResults$Feature
 
-    # Try removing the signal from the appropriate LeftOver element
-    # If there is not enough left over to remove, keep and then remove randomly
-    dRandomRemove = 0
-    for( iUpdatedSample in viUpdate )
-    {
-      dLeftOver[ iUpdatedSample ] = dLeftOver[ iUpdatedSample ] - dSignalMean
-      if( dLeftOver[ iUpdatedSample ] < 0 )
-      {
-        dRandomRemove = dRandomRemove + abs(dLeftOver[ iUpdatedSample ])
-        dLeftOver[ iUpdatedSample ] = 0
-      }
-    }
-    dRandomRemove = floor( dRandomRemove )
-    # Remove Randomly if needed
-    for( iCount in 1:dRandomRemove )
-    {
-      viNonZeroLeftOver = which( dLeftOver > 0 )
-      if( length( viNonZeroLeftOver ) )
-      {
-        iRemoveCount = sample( viNonZeroLeftOver, 1)
-        dLeftOver[ iRemoveCount ] = dLeftOver[ iRemoveCount ] - 1
-      }
-    }
-  }
-
-  # Min is placed here because if you ask for 2 samples but this is evaluating to find atleast 3 samples at a certain level you will inf loop
-  # Look to see how many measurements are above the min.
-  # If there are not enough counts more the the min number of counts
-  # then inflate the distribution up until there is enough counts.
-  iNeededExtraValues = iMinNumberSamples - length( which( dFeature >= iMinNumberCounts ) )
-
-  # Probability for each sample to get a count is based on it's current percentage of samples (multinomial distribution)
-  vdProbabilities = dFeature / sum( dFeature )
-
-  # Keep adding left over to the distribution until you have samples above the min count.
-  # Keep going even if you run out of LeftOver
-  # Add and remove counts to indices that are not zero
-  viAddIndices = which( dFeature > 0 )
-  viRemoveFromLeftOverIndices = which( dLeftOver > 0 )
-
-  # While we need to add counts
-  while( iNeededExtraValues > 0 )
-  {
-    # Index to add to, if multiple possibilities, select using the current percentage counts.
-    iIndexAdd = viAddIndices
-    if( length( iIndexAdd ) > 1 )
-    {
-      iIndexAdd = sample( viAddIndices, 1, prob = vdProbabilities[ viAddIndices ] )
-    }
-
-    dFeature[ iIndexAdd ] = dFeature[ iIndexAdd ] + 1
-    iNeededExtraValues = iMinNumberSamples - length( which( dFeature >= iMinNumberCounts ) )
-
-    # Remove a count from Left Over, select using the current percentage counts.
-    if( length(viRemoveFromLeftOverIndices) > 1 )
-    {
-      viRemoveFromLeftOverIndices = sample( viRemoveFromLeftOverIndices, 1, prob = dLeftOver[ viRemoveFromLeftOverIndices ] / sum( dLeftOver[ viRemoveFromLeftOverIndices ] ) )
-    }
-    if( length( viRemoveFromLeftOverIndices == 1 ) )
-    {
-      dLeftOver[ viRemoveFromLeftOverIndices ] = dLeftOver[ viRemoveFromLeftOverIndices ] - 1
-      dLeftOver[ dLeftOver < 0 ] = 0
-      viRemoveFromLeftOverIndices = which( dLeftOver > 0 )
-    }
-  }
+#!#  lsForceResults = funcForceMinCountsInMinSamples( vdFeature = dFeature, vdLeftOver = dLeftOver, iMinNumberCounts = iMinNumberCounts, iMinNumberSamples = iMinNumberSamples)
+#!#Remove comment  dFeature = lsForceResults$Feature
+#!#  dLeftOver = lsForceResults$LeftOver
 
   # Extra useful measurements, the true and expected means
   dMean = mean(dFeature)
-  dExpCal = funcGetExp(dMu,dSD)
 
   if(fVerbose)
   {
@@ -2047,7 +2063,7 @@ vdShuffleIn
   print("Start funcShuffleMatrix")
   # Add back in left over counts
   vdFeatureMeans = funcGetRowMetric(mtrxData,mean)
-#  vdFeatureMusPercent = vdFeatureMus/sum(vdFeatureMus)
+
   # Make left over an int
   viLeftOver = floor(vdShuffleIn)
   # Number of samples
@@ -2055,6 +2071,10 @@ vdShuffleIn
 
   for(iShuffle in 1:iNumberSamples)
   {
+    print(paste("Shuffling/Updating Sample", iShuffle))
+    print(iShuffle)
+    print("viLeftOver[iShuffle]")
+    print(viLeftOver[iShuffle])
     # Shuffle back in signal but not in zero locations
     if(viLeftOver[iShuffle] > 0)
     {
@@ -2216,6 +2236,55 @@ iThreshold = NA
 }
 
 
+funcUpdateDistributionToExpectation = function(
+### Updates a distribution to the mean while keeping the shape.
+vdFeatures,
+### Distribution of counts
+vdLeftOver,
+### Left over signal, this is not used but is updated. So as many counts as needed are used to update the distribution and are removed from vdLeftOver if there.
+dExp
+### The expectation to which to update the distribution
+){
+  print("funcUpdateDistributionToExpectation START")
+  # Used to ignore zeros in these calculations
+  viNonZeroIndices = which( vdFeatures > 0 )
+  iLengthNoZeros = length( viNonZeroIndices )
+
+  # Get the amount ofchange in signal needed
+  dDifference = dExp - mean( vdFeatures[ viNonZeroIndices ] )
+
+  # If signal is needed to be changed then update or remove signal by count
+  if( abs( dDifference ) > 0 )
+  {
+    # Number of counts to shift
+    dCounts = abs( floor( dDifference * iLengthNoZeros ) )
+    # Add to the distributio and shift it up
+    if(dDifference > 0)
+    {
+      vdUpdateIndices = sample( viNonZeroIndices, dCounts, replace = TRUE, prob = vdFeatures[ viNonZeroIndices ] / sum( vdFeatures[ viNonZeroIndices ] ) )
+      for( iIndex in vdUpdateIndices )
+      {
+        vdFeatures[ iIndex ] = vdFeatures[ iIndex ] + 1
+      }
+    } else if( dDifference < 0 )
+    {
+      # Remove fom distribution
+      for( iIndex in 1:dCounts )
+      {
+        viGreaterThan1 = which( vdFeatures > 1 )
+        if( length( viGreaterThan1 ) > 1 )
+        {
+          iUpdateIndex = sample( viGreaterThan1, 1, prob = vdFeatures[ viGreaterThan1 ] / sum( vdFeatures[ viGreaterThan1 ] ) )
+          vdFeatures[ iUpdateIndex ] = vdFeatures[ iUpdateIndex ] - 1
+        }
+      }
+    }
+    #!# update leftover
+  }
+  print("funcUpdateDistributionToExpectation STOP")
+  return( list( Feature = vdFeatures, LeftOver = vdLeftOver ) )
+}
+
 funcUpdateDistributionToSum = function(
 ### Update the distribution to the sum (read depth) requested.
 ### If the current read depth is not as large as needed sample the difference using
@@ -2228,7 +2297,7 @@ vdDistribution,
 iTargetSum
 ### The target sum to update the distribution to
 ){
-  # Update vdExp to read depth
+  # Update vdExp to target
   dCurReadDepthDifference = iTargetSum - sum( vdDistribution )
 
   # Multinomial probability
