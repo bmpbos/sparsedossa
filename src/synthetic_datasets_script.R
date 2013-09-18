@@ -1161,9 +1161,12 @@ fVerbose = FALSE
 #    params = funcUpdateData( params )
 #  }
 
+  barplot(colSums(mat_bugs),main=paste("Before Read depth mean=",mean(colSums(mat_bugs))), xlab="Samples")
+  abline(mean(colSums(mat_bugs)),0)
+
   # Shuffle back in removed signal.
-#  mat_bugs = funcShuffleMatrix(mtrxData=mat_bugs, vdFeatureMus=vdMu, vdShuffleIn=vdLeftOver)
-#  print("func_generate_random_lognormal_matrix: Shuffled")
+  mat_bugs = funcShuffleMatrix(mtrxData=mat_bugs, iTargetReadDepth=iReadDepth)
+  print("func_generate_random_lognormal_matrix: Shuffled")
 
   plot(vdExp, funcGetRowMetric(mat_bugs,mean), main = "Expected vs Actual Read Depth: After Shuffle")
 
@@ -1189,14 +1192,14 @@ fVerbose = FALSE
     print("Feature mean summary")
     print(summary(funcGetRowMetric(mat_bugs,mean)))
   }
-  dev.off()
 
   if(fVerbose)
   {
     ## Plot
-    barplot(colSums(mat_bugs),main=paste("Read depth mean=",mean(colSums(mat_bugs))), xlab="Samples")
+    barplot(colSums(mat_bugs),main=paste("After Read depth mean=",mean(colSums(mat_bugs))), xlab="Samples")
     abline(mean(colSums(mat_bugs)),0)
   }
+  dev.off()
 
   # Truth table for log normal data
   mtrxParameters = matrix(data=NA, nrow=6, ncol=1)
@@ -1748,9 +1751,10 @@ fVerbose = FALSE
   lsShiftResults = funcUpdateDistributionToExpectation( vdFeatures = dFeature, vdLeftOver = dLeftOver, dExp = dExpCal )
   dFeature = lsShiftResults$Feature
 
-#!#  lsForceResults = funcForceMinCountsInMinSamples( vdFeature = dFeature, vdLeftOver = dLeftOver, iMinNumberCounts = iMinNumberCounts, iMinNumberSamples = iMinNumberSamples)
-#!#Remove comment  dFeature = lsForceResults$Feature
-#!#  dLeftOver = lsForceResults$LeftOver
+  #!# Causes striation, update
+#  lsForceResults = funcForceMinCountsInMinSamples( vdFeature = dFeature, vdLeftOver = dLeftOver, iMinNumberCounts = iMinNumberCounts, iMinNumberSamples = iMinNumberSamples)
+#  dFeature = lsForceResults$Feature
+#  dLeftOver = lsForceResults$LeftOver
 
   # Extra useful measurements, the true and expected means
   dMean = mean(dFeature)
@@ -2052,6 +2056,65 @@ vdLeftOver
 
 
 funcShuffleMatrix = function(
+### Shuffle the martix to make read depth less variable
+mtrxData,
+### Matrix of values (rows are features, columns are samples)
+iTargetReadDepth
+){
+  print("Start funcShuffleMatrix")
+
+  # Get Read depths
+  viReadDepths = colSums( mtrxData )
+  dCurDeviance = sum( abs( viReadDepths - iTargetReadDepth ) )
+  print("dCurDeviance 1")
+  print(dCurDeviance)
+  # Measures the increase in the configuration
+  dPrevDeviance = dCurDeviance + 1
+
+  # Hold the max and min sample and feature info so the last shuffle can be undone
+  viMinSample = NA
+  viMaxSample = NA
+  viMaxFeature = NA
+
+  while( dCurDeviance < dPrevDeviance )
+  {
+    # Get min and max
+    viMinSample = which( viReadDepths == min( viReadDepths ) )
+    if( length( viMinSample ) > 1 ){ sample( viMinSample, 1 ) }
+    viMaxSample = which( viReadDepths == max( viReadDepths ) )
+    if( length( viMaxSample ) > 1 ){ sample( viMaxSample, 1 ) }
+
+    # Get feature with max count from max sample
+    viSample = mtrxData[,viMaxSample]
+    viMaxFeature = which( viSample == max( viSample ) )
+    if( length( viMaxFeature ) > 1 ){ sample( viMaxFeature, 1 ) }
+
+    # Shuffle with in feature, switching the max and min samples
+    iHold = mtrxData[ viMaxFeature, viMaxSample ]
+    mtrxData[ viMaxFeature, viMaxSample ] = iHold / 2
+    mtrxData[ viMaxFeature, viMinSample ] = iHold / 2 + mtrxData[ viMaxFeature, viMinSample ]
+
+    # Update Read depths and deviance
+    viReadDepths = colSums( mtrxData )
+    dPrevDeviance = dCurDeviance
+    dCurDeviance = sum( abs( viReadDepths - iTargetReadDepth ) )
+
+    print("dCurDeviance 2")
+    print(dCurDeviance)
+  }
+
+  # Undo last move
+#  if( ! is.na( viMinSample ) )
+#  {
+#    mtrxData[ viMaxFeature, viMaxSample ] = mtrxData[ viMaxFeature, viMaxSample ] * 2
+#    mtrxData[ viMaxFeature, viMinSample ] = mtrxData[ viMaxFeature, viMinSample ] - ( mtrxData[ viMaxFeature, viMaxSample ] * 2 )
+#  }
+
+  return(mtrxData)
+}
+
+
+funcShuffleMatrix1 = function(
 ### Shuffle in left over singal into the matrix
 mtrxData,
 ### Matrix of values (rows are features, columns are samples)
@@ -2279,7 +2342,19 @@ dExp
         }
       }
     }
-    #!# update leftover
+    # update leftover
+    if( sum( vdLeftOver ) > 0 )
+    {
+      vdLeftOver[ which( vdLeftOver < 0 ) ] = 0
+      vdProbRemove = vdLeftOver / sum( vdLeftOver )
+      vdProbRemove[ is.na(vdProbRemove) ] = 0
+      viRemove = sample( 1:length( vdLeftOver ), dCounts, replace = TRUE, prob = vdProbRemove )
+      for( iIndex in viRemove )
+      {
+        vdLeftOver[ iIndex ] = vdLeftOver[ iIndex ] - 1
+      }
+    }
+    vdLeftOver[ which( vdLeftOver < 0 ) ] = 0
   }
   print("funcUpdateDistributionToExpectation STOP")
   return( list( Feature = vdFeatures, LeftOver = vdLeftOver ) )
