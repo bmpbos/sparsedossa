@@ -79,7 +79,7 @@ c_strNoiseScaling  = "Scaling parameter for variance of noise:"
 # Temporary control flags
 c_dfFreezeSDFeatures = FALSE
 c_dfFreezeSDGrandMu = FALSE
-c_fPrintLognormalMatrix = TRUE
+c_fPrintLognormalMatrix = FALSE
 
 # Define the relationship between different feature properties
 # These variables are associated with settings for
@@ -805,7 +805,11 @@ fVerbose = FALSE
     }
 
     # Remember this is a vector of expectation not of log mu parameters.
-    lExpVectorReturn = funcTruncatedRLNorm(iNumberMeasurements=int_number_features, dLogMean=lsParams$dLogMu, dLogSD=lsParams$dLogSD, iThreshold=exp((c_iTimesSDIsOutlier*lsParams$dLogSD)+lsParams$dLogMu))
+#    print( paste( "LogMu", lsParams$dLogMu, "LogSD", lsParams$dLogSD, "Threshold",exp((c_iTimesSDIsOutlier*lsParams$dLogSD)+lsParams$dLogMu) ))
+#    lExpVectorReturn = funcTruncatedRLNorm(iNumberMeasurements=int_number_features, dLogMean=lsParams$dLogMu, dLogSD=lsParams$dLogSD, iThreshold=exp((c_iTimesSDIsOutlier*lsParams$dLogSD)+lsParams$dLogMu))
+
+    print( paste( "LogMu", lsParams$dLogMu, "LogSD", lsParams$dLogSD, "Threshold",(c_iTimesSDIsOutlier*log(lsParams$dLogSD))+log(lsParams$dLogMu)))
+    lExpVectorReturn = funcTruncatedRLNorm(iNumberMeasurements=int_number_features, dLogMean=lsParams$dLogMu, dLogSD=lsParams$dLogSD, iThreshold=( c_iTimesSDIsOutlier*exp( lsParams$dLogSD ) ) + exp( lsParams$dLogMu ) )
     vdExp = lExpVectorReturn$Feature
 
     ### Update the distribution to the sum (read depth) requested.
@@ -878,19 +882,6 @@ fVerbose = FALSE
     }
     if(fVerbose){plot(log(vdExp), vdPercentZero, main="Generated Relationship of PercentZero and Log exp", col="purple")}
   }
-
-#!# Removed resampling of exp, if a calibrated file is used, the number of features are frozen.
-#  if(!length(vdMu)==int_number_features)
-#  {
-#    # This is the scenario that the calibration file is used and the number of the samples needed are not equal
-#    # This correct number of are selected with replacement.
-#    print("funcGenerateFeatureParameters: Reseting count of samples.")
-#    viWhich = sample(1:length(vdExp), size = int_number_features, replace = TRUE)
-#    vdExp = vdExp[viWhich]
-#    vdMu = vdMu[viWhich]
-#    vdSD = vdSD[viWhich]
-#    vdPercentZero = vdPercentZero[viWhich]   
-#  }
 
   print("stop funcGenerateFeatureParameters")
 
@@ -1080,7 +1071,7 @@ fVerbose = FALSE
 
   # Preallocating for speed
   mat_bugs = matrix(data=NA,nrow=int_number_features,ncol=int_number_samples)
-  mtrxWithLeftOver = matrix(data=NA,nrow=int_number_features,ncol=int_number_samples)
+
   # Get the initial mu vector for generating features.
   lsInitialDistribution = funcGenerateFeatureParameters(int_number_features=int_number_features, int_number_samples=int_number_samples, iMinNumberSamples=iMinNumberSamples, iReadDepth=iReadDepth, vdExp=vdExp, vdMu=vdMu, vdSD=vdSD, vdPercentZero=vdPercentZero, lSDRel, lPercentZeroRel, dBetaGrandSD = dBetaGrandSD, fVerbose=fVerbose)
 
@@ -1132,9 +1123,7 @@ fVerbose = FALSE
     vdLeftOver = vdLeftOver + lFeatureDetails$LeftOver
 
     # Update the matrix with the new feature
-    #!# remove leftover
     mat_bugs[iReset,] = lFeatureDetails$Feature
-    mtrxWithLeftOver[iReset,] = lFeatureDetails$Feature + lFeatureDetails$LeftOver
   }
   print("func_generate_random_lognormal_matrix: Made features")
   print("vdLeftOver")
@@ -1142,9 +1131,7 @@ fVerbose = FALSE
 
   #!# Remove
   plot(vdExp, funcGetRowMetric(mat_bugs,mean), main = "Expected vs Actual Read Depth: Initial")
-  plot(vdExp, funcGetRowMetric(mtrxWithLeftOver,mean), main = "Expected vs Actual Read Depth: Initial mtrxWithLeftOver")
   plot(log(vdExp), log(funcGetRowMetric(mat_bugs,mean)), main = "Expected vs Actual Read Depth: Initial logged")
-  plot(log(vdExp), log(funcGetRowMetric(mtrxWithLeftOver,mean)), main = "Expected vs Actual Read Depth: Initial mtrxWithLeftOver logged")
   ####
 
   # Remove any fully zero sample
@@ -1748,13 +1735,19 @@ fVerbose = FALSE
   dLeftOver = lFeatureData$LeftOver
 
   # Update the distributions to the targeted expectations
+  print("Before Expectation")
+  print(summary(dFeature))
+  print("Exp")
+  print(dExpCal)
   lsShiftResults = funcUpdateDistributionToExpectation( vdFeatures = dFeature, vdLeftOver = dLeftOver, dExp = dExpCal )
   dFeature = lsShiftResults$Feature
+  print("After Expectation")
+  print(summary(dFeature))
 
-  #!# Causes striation, update
-#  lsForceResults = funcForceMinCountsInMinSamples( vdFeature = dFeature, vdLeftOver = dLeftOver, iMinNumberCounts = iMinNumberCounts, iMinNumberSamples = iMinNumberSamples)
-#  dFeature = lsForceResults$Feature
-#  dLeftOver = lsForceResults$LeftOver
+  # Causes striation, update
+  lsForceResults = funcForceMinCountsInMinSamples( vdFeature = dFeature, vdLeftOver = dLeftOver, iMinNumberCounts = iMinNumberCounts, iMinNumberSamples = iMinNumberSamples)
+  dFeature = lsForceResults$Feature
+  dLeftOver = lsForceResults$LeftOver
 
   # Extra useful measurements, the true and expected means
   dMean = mean(dFeature)
@@ -1763,6 +1756,9 @@ fVerbose = FALSE
   {
     plot( dFeature, main = paste("funcMakeFeature","Mean (",round(dMu,2),")",round(dMean,2),"SD(",round(dSD,2),")",round(sd(log(dFeature[which(dFeature>0)])),2),"Exp",round(dExpCal,2)))
   }
+
+  print("Stop funcMakeFeature")
+  print( summary( dFeature ) )
   return(list(Feature = dFeature, Exp = dMean, ExpCal = dExpCal, LeftOver = dLeftOver))
 }
 
@@ -2055,6 +2051,7 @@ vdLeftOver
 }
 
 
+
 funcShuffleMatrix = function(
 ### Shuffle the martix to make read depth less variable
 mtrxData,
@@ -2066,8 +2063,7 @@ iTargetReadDepth
   # Get Read depths
   viReadDepths = colSums( mtrxData )
   dCurDeviance = sum( abs( viReadDepths - iTargetReadDepth ) )
-  print("dCurDeviance 1")
-  print(dCurDeviance)
+
   # Measures the increase in the configuration
   dPrevDeviance = dCurDeviance + 1
 
@@ -2091,24 +2087,22 @@ iTargetReadDepth
 
     # Shuffle with in feature, switching the max and min samples
     iHold = mtrxData[ viMaxFeature, viMaxSample ]
-    mtrxData[ viMaxFeature, viMaxSample ] = iHold / 2
-    mtrxData[ viMaxFeature, viMinSample ] = iHold / 2 + mtrxData[ viMaxFeature, viMinSample ]
+    mtrxData[ viMaxFeature, viMaxSample ] = mtrxData[ viMaxFeature, viMinSample ]
+    mtrxData[ viMaxFeature, viMinSample ] = iHold 
 
     # Update Read depths and deviance
     viReadDepths = colSums( mtrxData )
     dPrevDeviance = dCurDeviance
     dCurDeviance = sum( abs( viReadDepths - iTargetReadDepth ) )
-
-    print("dCurDeviance 2")
-    print(dCurDeviance)
   }
 
   # Undo last move
-#  if( ! is.na( viMinSample ) )
-#  {
-#    mtrxData[ viMaxFeature, viMaxSample ] = mtrxData[ viMaxFeature, viMaxSample ] * 2
-#    mtrxData[ viMaxFeature, viMinSample ] = mtrxData[ viMaxFeature, viMinSample ] - ( mtrxData[ viMaxFeature, viMaxSample ] * 2 )
-#  }
+  if( ! is.na( viMinSample ) )
+  {
+    iHold = mtrxData[ viMaxFeature, viMaxSample ]
+    mtrxData[ viMaxFeature, viMaxSample ] = mtrxData[ viMaxFeature, viMinSample ]
+    mtrxData[ viMaxFeature, viMinSample ] = iHold 
+  }
 
   return(mtrxData)
 }
@@ -2247,7 +2241,7 @@ fZeroInflated = True
   return(vdSpikedBug)
 }
 
-# 4 Tests 9/4/2013
+
 funcTruncatedRLNorm = function(
 ### Return draws from a random log normal distribution with a truncated tail so outliers are not introduced.
 iNumberMeasurements,
@@ -2259,10 +2253,11 @@ dLogSD,
 iThreshold = NA
 ### The value used to define outliers. 
 ){
-  # Get a feature measurement one at a time checking for outliers
-  # and redrawing outliers
+  print( paste( "funcTruncatedRLNorm", "Exp", funcGetExp(exp(dLogMean),exp(dLogSD)), "logMu", dLogMean, "logSD", dLogSD, "Threshold", iThreshold ) )
+  # Get a feature from a lognormal distribution
   vdFeature = rlnorm( iNumberMeasurements, dLogMean, dLogSD )
   vdDifference = rep( 0, iNumberMeasurements )
+  print( summary( vdFeature ) )
 
   # If a value is given to truncate outliers
   if( !is.na( iThreshold ) )
@@ -2271,28 +2266,27 @@ iThreshold = NA
 
     # If there are outliers
     # Change the outliers to the mean of the draws before it is drawn (indices less than it's own)
-    # and optionally shuffle back in the differences between the outliers and the max
+    # Record the differences between the value used and the outlier value drawn incase the extra signal is needed.
     if( length( viOutliers ) )
     {
-      print("dMeanDraws")
-      print(paste("dLogMean",round(exp(dLogMean),2)))
-      print(paste("dLogSD",round(exp(dLogSD),2)))
       vdMeanDraws = c()
       for( iIndex in viOutliers )
       {
-        dMeanDraws = mean( vdFeature[ sample( 1:iIndex, 2, replace = TRUE ) ] )
-        vdMeanDraws= c(vdMeanDraws, dMeanDraws)
+        viToMean = 1:(iIndex-1)
+        if(iIndex-1 == 0){ viToMean = setdiff( 1:length(vdFeature), viOutliers ) }
+        dMeanDraws = mean( vdFeature[ sample( viToMean, 2, replace = TRUE ) ] )
+        vdMeanDraws = c(vdMeanDraws, dMeanDraws)
         vdDifference[ iIndex ] = vdFeature[ iIndex ] - dMeanDraws
         vdFeature[ iIndex ] = dMeanDraws
       }
-      print(sort(vdMeanDraws))
     }
   }
   #Truncate negatives to zero
   vdFeature[ vdFeature < 0 ] = 0
 
-  print("vdFeature end trunc")
-  print(vdFeature)
+  print("Stop funcTruncatedRLNorm")
+  print( summary( vdFeature ) )
+
   return(list(Feature=vdFeature, LeftOver=vdDifference))
 ### vdFeature: The signal (optionally truncated, log normal distribution)
 ### vdDifference: Left over signal that was removed from the original vdFeature
@@ -2311,16 +2305,15 @@ dExp
   print("funcUpdateDistributionToExpectation START")
   # Used to ignore zeros in these calculations
   viNonZeroIndices = which( vdFeatures > 0 )
-  iLengthNoZeros = length( viNonZeroIndices )
 
-  # Get the amount ofchange in signal needed
-  dDifference = dExp - mean( vdFeatures[ viNonZeroIndices ] )
+  # Get the amount of change in signal needed
+  dDifference = dExp - mean( vdFeatures )
 
   # If signal is needed to be changed then update or remove signal by count
   if( abs( dDifference ) > 0 )
   {
     # Number of counts to shift
-    dCounts = abs( floor( dDifference * iLengthNoZeros ) )
+    dCounts = abs( floor( dDifference * length( vdFeatures ) ) )
     # Add to the distributio and shift it up
     if(dDifference > 0)
     {
@@ -2525,6 +2518,9 @@ iThreshold = NA
     vdLeftOver[ viZeroLocations ] = vdLeftOver[ viZeroLocations ] + vdFeature[ viZeroLocations ]
     vdFeature[ viZeroLocations ] = 0
   }
+
+  print("Stop funcZeroInflate")
+  print( summary( vdFeature ) )
 
   # Return zero-inflated truncated lognormal feature with left over signal to later be shuffled back in.
   return( list( Feature = vdFeature, LeftOver = vdLeftOver ) )
