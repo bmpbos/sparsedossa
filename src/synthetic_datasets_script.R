@@ -2223,7 +2223,6 @@ dLogSD,
 iThreshold = NA
 ### The value used to define outliers. 
 ){
-  print( paste( "funcTruncatedRLNorm", "Exp", funcGetExp(exp(dLogMean),exp(dLogSD)), "logMu", dLogMean, "logSD", dLogSD, "Threshold", iThreshold ) )
   # Get a feature from a lognormal distribution
   vdFeature = rlnorm( iNumberMeasurements, dLogMean, dLogSD )
   vdDifference = rep( 0, iNumberMeasurements )
@@ -2268,7 +2267,6 @@ vdLeftOver,
 dExp
 ### The expectation to which to update the distribution
 ){
-  print("funcUpdateDistributionToExpectation START")
   # Used to ignore zeros in these calculations
   viNonZeroIndices = which( vdFeatures > 0 )
 
@@ -2315,7 +2313,6 @@ dExp
     }
     vdLeftOver[ which( vdLeftOver < 0 ) ] = 0
   }
-  print("funcUpdateDistributionToExpectation STOP")
   return( list( Feature = vdFeatures, LeftOver = vdLeftOver ) )
 }
 
