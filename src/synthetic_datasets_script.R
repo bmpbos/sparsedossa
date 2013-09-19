@@ -667,9 +667,6 @@ fVerbose = FALSE
                                        dBetaGrandSD = dBetaGrandSD,
                                        fVerbose = fVerbose)
 
-  print("RRRR")
-  print(sum(mu_vector[["exp"]]))
-
   # This gets a lognormal distribution, you can do this with a predefined mu vector if needed.
   # After this step you should add the bug spike-ins
   # Note this is count data, normalization will happen automatically for you after you return the matrix
@@ -805,9 +802,6 @@ fVerbose = FALSE
     }
 
     # Remember this is a vector of expectation not of log mu parameters.
-#    print( paste( "LogMu", lsParams$dLogMu, "LogSD", lsParams$dLogSD, "Threshold",exp((c_iTimesSDIsOutlier*lsParams$dLogSD)+lsParams$dLogMu) ))
-#    lExpVectorReturn = funcTruncatedRLNorm(iNumberMeasurements=int_number_features, dLogMean=lsParams$dLogMu, dLogSD=lsParams$dLogSD, iThreshold=exp((c_iTimesSDIsOutlier*lsParams$dLogSD)+lsParams$dLogMu))
-
     print( paste( "LogMu", lsParams$dLogMu, "LogSD", lsParams$dLogSD, "Threshold",(c_iTimesSDIsOutlier*log(lsParams$dLogSD))+log(lsParams$dLogMu)))
     lExpVectorReturn = funcTruncatedRLNorm(iNumberMeasurements=int_number_features, dLogMean=lsParams$dLogMu, dLogSD=lsParams$dLogSD, iThreshold=( c_iTimesSDIsOutlier*exp( lsParams$dLogSD ) ) + exp( lsParams$dLogMu ) )
     vdExp = lExpVectorReturn$Feature
@@ -1110,14 +1104,8 @@ fVerbose = FALSE
   print("func_generate_random_lognormal_matrix: START Making features")
   for(iReset in 1:int_number_features)
   {
-    print(paste("feature",iReset))
     # Create new feature
     lFeatureDetails = funcMakeFeature(dMu=vdMu[iReset], dSD=vdSD[iReset], dPercentZero=vdPercentZero[iReset], iNumberSamples=int_number_samples, iMinNumberCounts=iMinNumberCounts, iMinNumberSamples=iMinNumberSamples, dTruncateThreshold=(c_iTimesSDIsOutlier*vdSD[iReset])+vdMu[iReset], fZeroInflate=fZeroInflate, fVerbose=fVerbose )
-
-    #!# Remove
-#    print("lFeatureDetails")
-#    print(lFeatureDetails)
-    ####
 
     # Store the left over counts per sample
     vdLeftOver = vdLeftOver + lFeatureDetails$LeftOver
@@ -1125,9 +1113,6 @@ fVerbose = FALSE
     # Update the matrix with the new feature
     mat_bugs[iReset,] = lFeatureDetails$Feature
   }
-  print("func_generate_random_lognormal_matrix: Made features")
-  print("vdLeftOver")
-  print(vdLeftOver)
 
   #!# Remove
   plot(vdExp, funcGetRowMetric(mat_bugs,mean), main = "Expected vs Actual Read Depth: Initial")
@@ -1449,7 +1434,6 @@ fVerbose = FALSE
       # Find valid spike-in scenario or best choice
       while(fSpikeInFailed)
       {
-        print(iSpikeInLoopControl)
         # Get the bug to attempt the association
         # If previously associations have been made
         # liFrozenDataIndices makes the same associations happen here
@@ -1491,8 +1475,6 @@ fVerbose = FALSE
 
         # Check to see if a failure occured
         lxQCInfo = funcQCSpikin(vdCurMetadata, vdSpikedBug, iMinSamples)
-        print(paste("Selected metadata", viSelectedMetadata))
-        print(paste("Selected data", iIndexSpikedFeature))
 
         # lxQCInfo has the slots PASS = Boolean, CommonCounts = vector of integers
         fSpikeInFailed = !lxQCInfo[["PASS"]]
@@ -1735,14 +1717,8 @@ fVerbose = FALSE
   dLeftOver = lFeatureData$LeftOver
 
   # Update the distributions to the targeted expectations
-  print("Before Expectation")
-  print(summary(dFeature))
-  print("Exp")
-  print(dExpCal)
   lsShiftResults = funcUpdateDistributionToExpectation( vdFeatures = dFeature, vdLeftOver = dLeftOver, dExp = dExpCal )
   dFeature = lsShiftResults$Feature
-  print("After Expectation")
-  print(summary(dFeature))
 
   # Causes striation, update
   lsForceResults = funcForceMinCountsInMinSamples( vdFeature = dFeature, vdLeftOver = dLeftOver, iMinNumberCounts = iMinNumberCounts, iMinNumberSamples = iMinNumberSamples)
@@ -1757,8 +1733,6 @@ fVerbose = FALSE
     plot( dFeature, main = paste("funcMakeFeature","Mean (",round(dMu,2),")",round(dMean,2),"SD(",round(dSD,2),")",round(sd(log(dFeature[which(dFeature>0)])),2),"Exp",round(dExpCal,2)))
   }
 
-  print("Stop funcMakeFeature")
-  print( summary( dFeature ) )
   return(list(Feature = dFeature, Exp = dMean, ExpCal = dExpCal, LeftOver = dLeftOver))
 }
 
@@ -2128,10 +2102,6 @@ vdShuffleIn
 
   for(iShuffle in 1:iNumberSamples)
   {
-    print(paste("Shuffling/Updating Sample", iShuffle))
-    print(iShuffle)
-    print("viLeftOver[iShuffle]")
-    print(viLeftOver[iShuffle])
     # Shuffle back in signal but not in zero locations
     if(viLeftOver[iShuffle] > 0)
     {
@@ -2257,7 +2227,6 @@ iThreshold = NA
   # Get a feature from a lognormal distribution
   vdFeature = rlnorm( iNumberMeasurements, dLogMean, dLogSD )
   vdDifference = rep( 0, iNumberMeasurements )
-  print( summary( vdFeature ) )
 
   # If a value is given to truncate outliers
   if( !is.na( iThreshold ) )
@@ -2283,9 +2252,6 @@ iThreshold = NA
   }
   #Truncate negatives to zero
   vdFeature[ vdFeature < 0 ] = 0
-
-  print("Stop funcTruncatedRLNorm")
-  print( summary( vdFeature ) )
 
   return(list(Feature=vdFeature, LeftOver=vdDifference))
 ### vdFeature: The signal (optionally truncated, log normal distribution)
@@ -2519,9 +2485,6 @@ iThreshold = NA
     vdFeature[ viZeroLocations ] = 0
   }
 
-  print("Stop funcZeroInflate")
-  print( summary( vdFeature ) )
-
   # Return zero-inflated truncated lognormal feature with left over signal to later be shuffled back in.
   return( list( Feature = vdFeature, LeftOver = vdLeftOver ) )
 }
@@ -2611,8 +2574,6 @@ if(dMinOccurenceSample>int_number_samples)
 
 fVerbose = options[['verbose']]
 fZeroInflate = !options[['noZeroInflate']]
-print("%%%%% fZeroInflate")
-print(fZeroInflate)
 
 # locational arguments
 file_names = lxArgs[['args']]
@@ -2668,8 +2629,6 @@ if(!is.na(strCalibrationFile) & (strCalibrationFile!="NA"))
   # Get the fit for the data
   print("Calibrating...")
   lsFit = funcCalibrateRLNormToMicrobiome(strCalibrationFile,fVerbose)
-  print("lsFit")
-  print(lsFit)
   vdExp = lsFit[["exp"]]
   vdMu = lsFit[["mu"]]
   vdSD = lsFit[["sd"]]
@@ -2722,10 +2681,6 @@ for (how_many_multivariates in seq(1,collinear_range,collinear_increment))
 
   for (mult in seq(int_min_multiplier_range, int_max_multiplier_range, int_multiplier_delta))
   {
-    print("how_many_multivariates")
-    print(how_many_multivariates)
-    print("mult")
-    print(mult)
     pdf(file.path(dirname(strCountFileName),paste("SpikeIn_n_", how_many_multivariates,"_m_", mult,".pdf",sep="")), useDingbats=FALSE)
     mat_random_lognormal_multivariate_spikes = func_generate_random_lognormal_with_multivariate_spikes(int_number_features=int_number_features, int_number_samples=int_number_samples,  percent_spikes=dPercentMultSpiked, multiplier=mult, metadata_matrix=mat_metadata, multivariate_parameter=how_many_multivariates, dMinLevelCountPercent=dMinLevelCountPercent, mtrxBugs=mat_random_lognormal_bugs[["mat_bugs"]],fZeroInflated=fZeroInflate, lviFrozeMetadataIndices=lviMetadata, liFrozeDataIndicies=liData, lsFrozeLevels=lsLevels, fVerbose=fVerbose)
     mat_random_lognormal_multivariate_spikes_bugs = mat_random_lognormal_multivariate_spikes[["mat_bugs"]]
