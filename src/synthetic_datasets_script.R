@@ -1070,11 +1070,13 @@ fVerbose = FALSE
   lsInitialDistribution = funcGenerateFeatureParameters(int_number_features=int_number_features, int_number_samples=int_number_samples, iMinNumberSamples=iMinNumberSamples, iReadDepth=iReadDepth, vdExp=vdExp, vdMu=vdMu, vdSD=vdSD, vdPercentZero=vdPercentZero, lSDRel, lPercentZeroRel, dBetaGrandSD = dBetaGrandSD, fVerbose=fVerbose)
 
   pdf("Check2.pdf")
-  plot(sort(c_vdExpLog), sort(log(lsInitialDistribution$exp)))
-  plot(sort(log(lsInitialDistribution$exp)),main="Exp")
-  plot(sort(c_vdSD), sort(log(lsInitialDistribution$sd)), main="SD")
-  plot(sort(c_vdPercentZero), sort(lsInitialDistribution$PercentZero),main="PercentZero")
-
+  if(length(c_vdExpLog)==length(lsInitialDistribution$exp))
+  {
+    plot(sort(c_vdExpLog), sort(log(lsInitialDistribution$exp)))
+    plot(sort(log(lsInitialDistribution$exp)),main="Exp")
+    plot(sort(c_vdSD), sort(log(lsInitialDistribution$sd)), main="SD")
+    plot(sort(c_vdPercentZero), sort(lsInitialDistribution$PercentZero),main="PercentZero")
+  }
   # Update the Mu, SD and Percent zero bugs and report on distributions
   vdMu = lsInitialDistribution[["mu"]]
   vdSD = lsInitialDistribution[["sd"]]
@@ -2545,7 +2547,7 @@ if(int_max_multiplier_range<int_min_multiplier_range)
   int_min_multiplier_range = int_max_multiplier_range
   int_max_multiplier_range = iTemp
 }
-if(int_min_multiplier_range<=0)stop("Please provide make sure the smallest value in the multiplier range is greater than 0.")
+if(int_min_multiplier_range<0)stop("Please make sure the smallest value in the multiplier range is equal to or greater than 0.")
 collinear_range = options[['collinear_range']]
 if(collinear_range < 1) stop("Please provide a collinear increment greater than or equal to 1")
 collinear_increment = options[['collinear_increment']]
