@@ -398,61 +398,34 @@ funcForceMinCountsInMinSamples = function(
 ### For a feature to pass the requirement of having a certain minimal count in a minimal number of samples
 vdFeature,
 ### Vector of signal (integers). Same length as vdLeftOver.
-vdLeftOver,
-### Vector of left over signal to add in. Same length as vdLeftOver.
 iMinNumberCounts = 0,
 ### Minimum number of counts for a sample to pass the filter
 iMinNumberSamples = 0
 ### Min number of samples to have the minimum number of counts
 ){
-  # Check to make sure there are enough none zeros to add signal to for the min number of samples
+  # No need to perform function if there is nothing to adjust
+  if( ( iMinNumberCounts + iMinNumberSamples ) == 0 ){ return( vdFeature ) }
+
+  # Check to make sure there are enough non-zeros to add signal to for the min number of samples
   iNonZeroSamplesNeeded = min( 0, iMinNumberSamples - length( which( vdFeature == 0 ) ) )
   if(iNonZeroSamplesNeeded > 0)
   {
-    # If more samples are needed, add them back in as the mean and remove signal from the left over
+    # If more samples are needed, add them back in as the mean
     dSignalMean = round( mean( vdFeature[ which( vdFeature > 0 ) ] ) )
     viUpdate = sample( which( vdFeature == 0 ), iNonZeroSamplesNeeded )
     vdFeature[ viUpdate ] = dSignalMean
-
-    # Try removing the signal from the appropriate LeftOver element
-    # If there is not enough left over to remove, keep and then remove randomly
-    dRandomRemove = 0
-    for( iUpdatedSample in viUpdate )
-    {
-      vdLeftOver[ iUpdatedSample ] = vdLeftOver[ iUpdatedSample ] - dSignalMean
-      if( vdLeftOver[ iUpdatedSample ] < 0 )
-      {
-        dRandomRemove = dRandomRemove + abs(vdLeftOver[ iUpdatedSample ])
-        vdLeftOver[ iUpdatedSample ] = 0
-      }
-    }
-    dRandomRemove = floor( dRandomRemove )
-    # Remove Randomly if needed
-    for( iCount in 1:dRandomRemove )
-    {
-      viNonZeroLeftOver = which( vdLeftOver > 0 )
-      if( length( viNonZeroLeftOver ) )
-      {
-        iRemoveCount = sample( viNonZeroLeftOver, 1)
-        vdLeftOver[ iRemoveCount ] = vdLeftOver[ iRemoveCount ] - 1
-      }
-    }
   }
 
-  # Min is placed here because if you ask for 2 samples but this is evaluating to find atleast 3 samples at a certain level you will inf loop
   # Look to see how many measurements are above the min.
-  # If there are not enough counts more the the min number of counts
+  # If there are not enough counts more then the min number of counts
   # then inflate the distribution up until there is enough counts.
   iNeededExtraValues = iMinNumberSamples - length( which( vdFeature >= iMinNumberCounts ) )
 
   # Probability for each sample to get a count is based on it's current percentage of samples (multinomial distribution)
   vdProbabilities = vdFeature / sum( vdFeature )
 
-  # Keep adding left over to the distribution until you have samples above the min count.
-  # Keep going even if you run out of LeftOver
   # Add and remove counts to indices that are not zero
   viAddIndices = which( vdFeature > 0 )
-  viRemoveFromLeftOverIndices = which( vdLeftOver > 0 )
 
   # While we need to add counts
   while( iNeededExtraValues > 0 )
@@ -466,20 +439,8 @@ iMinNumberSamples = 0
 
     vdFeature[ iIndexAdd ] = vdFeature[ iIndexAdd ] + 1
     iNeededExtraValues = iMinNumberSamples - length( which( vdFeature >= iMinNumberCounts ) )
-
-    # Remove a count from Left Over, select using the current percentage counts.
-    if( length(viRemoveFromLeftOverIndices) > 1 )
-    {
-      viRemoveFromLeftOverIndices = sample( viRemoveFromLeftOverIndices, 1, prob = vdLeftOver[ viRemoveFromLeftOverIndices ] / sum( vdLeftOver[ viRemoveFromLeftOverIndices ] ) )
-    }
-    if( length( viRemoveFromLeftOverIndices == 1 ) )
-    {
-      vdLeftOver[ viRemoveFromLeftOverIndices ] = vdLeftOver[ viRemoveFromLeftOverIndices ] - 1
-      vdLeftOver[ vdLeftOver < 0 ] = 0
-      viRemoveFromLeftOverIndices = which( vdLeftOver > 0 )
-    }
   }
-  return( list( Feature = vdFeature, LeftOver = vdLeftOver) )
+  return( vdFeature )
 }
 
 
@@ -1121,12 +1082,6 @@ fVerbose = FALSE
   plot(log(vdExp), log(funcGetRowMetric(mat_bugs,mean)), main = "Expected vs Actual Read Depth: Initial logged")
   ####
 
-  # Remove any fully zero sample
-  lZeroCorrectionResults = funcZeroCorrectMatrix(mtrxData=mat_bugs, vdFeatureMus=vdExp, vdLeftOver=vdLeftOver)
-  mat_bugs = lZeroCorrectionResults[["Data"]]
-  vdLeftOver = lZeroCorrectionResults[["LeftOver"]]
-  print("func_generate_random_lognormal_matrix: Zero corrected")  
-
   plot(vdExp, funcGetRowMetric(mat_bugs,mean), main = "Expected vs Actual Read Depth: AfterZeroCorrect")
 
   # Allow a function to be called to manipulate the matrix before updating to the read depth
@@ -1140,12 +1095,14 @@ fVerbose = FALSE
 
   # Shuffle back in removed signal.
   mat_bugs = funcShuffleMatrix(mtrxData=mat_bugs, iTargetReadDepth=iReadDepth)
-  print("func_generate_random_lognormal_matrix: Shuffled")
-
   plot(vdExp, funcGetRowMetric(mat_bugs,mean), main = "Expected vs Actual Read Depth: After Shuffle")
 
   # Round to counts
-  mat_bugs = funcRoundMatrix(mtrxData=mat_bugs)
+  # This round method does not allow value produced lower then the minimal value 
+  # This allows control to make sure zeros are produced only if they are not equal to zero.
+  # This is appropriate for a zero inflated model but not for a standard lognormal model.
+  # So if zero inflation is used then this rounding function is needed otherwise a normal rounding can be performed by not setting the iMinValue.
+  mat_bugs = funcRoundMatrix(mtrxData=mat_bugs, fZeroInflated=fZeroInflate)
 
   if(c_dfFreezeSDGrandMu ||c_dfFreezeSDFeatures||c_fPrintLognormalMatrix)
   {
@@ -1371,7 +1328,7 @@ fVerbose = FALSE
   # Tracks the bug of interest
   iIndexSpikedFeature = NA
 
-  # Initialize froze levels if need be
+  # Initialize frozen levels if need be
   if(is.null(lsFrozeLevels))
   {
     lsFrozeLevels = list()
@@ -1723,9 +1680,7 @@ fVerbose = FALSE
   dFeature = lsShiftResults$Feature
 
   # Causes striation, update
-  lsForceResults = funcForceMinCountsInMinSamples( vdFeature = dFeature, vdLeftOver = dLeftOver, iMinNumberCounts = iMinNumberCounts, iMinNumberSamples = iMinNumberSamples)
-  dFeature = lsForceResults$Feature
-  dLeftOver = lsForceResults$LeftOver
+  dFeature = funcForceMinCountsInMinSamples( vdFeature = dFeature, iMinNumberCounts = iMinNumberCounts, iMinNumberSamples = iMinNumberSamples)
 
   # Extra useful measurements, the true and expected means
   dMean = mean(dFeature)
@@ -1928,7 +1883,7 @@ funcQCSpikin = function(
 ### Asks the question is there a minimal number of overlap for metadata features with data features
 ### Works for dummied metadata or not
 ### In level based metadata, checks if there is a minimal # of nonzero bug entries with the level of interest
-### In factor data not reduced to a level, checks if each level has at least  a min of non zero entries >= min # non-zeros / # metadata levels
+### In factor data not reduced to a level, checks if each level has at least a min of non zero entries >= min # non-zeros / # metadata levels
 vdCurMetadata,
 ### The metadata that was spiked-in, could be a vector or matrices (row major) depending on if the spikin is multivariate or not.
 vdSpikedBug,
@@ -1937,7 +1892,7 @@ iMinSpikedSamples,
 ### Minimal number of samples to be spiked in to pass QC
 fDummyFactorData = TRUE
 ){
-  if(is.null(vdSpikedBug)){return(list(PASS=FALSE, CommonCounts=c()))}
+  if( is.null( vdSpikedBug ) ){ return( list( PASS = FALSE, CommonCounts = c() ) ) }
 
   # Will eventually hold which samples are non zero
   # Will eventually be a list of vectors
@@ -1946,83 +1901,87 @@ fDummyFactorData = TRUE
   vNonZeroMetadata = c()
 
   # Get which bug samples are 0
-  viNonZeroSpikedBugs = which(vdSpikedBug!=0)
+  viNonZeroSpikedBugs = which( vdSpikedBug != 0 )
 
   # Get number of row (the matrix is row major)
-  dNumberMetadata = nrow(vdCurMetadata)
-  if(is.null(dNumberMetadata))
+  # This could be a matrix (if multiple metadata are spiked in)
+  # or a vector ( for 1 metadata spikeins )
+  dNumberMetadata = nrow( vdCurMetadata )
+  if( is.null( dNumberMetadata ) )
   {
     dNumberMetadata = 1
-    vdCurMetadata = matrix(vdCurMetadata,nrow=1)
+    vdCurMetadata = matrix( vdCurMetadata, nrow = 1 )
   }
 
   # This is to return a pass or fail and the number of nonzero items so
   # even if one fails, the best choice can be made in a series of these calls
   fPass = TRUE
   viCommon = c()
-  for(iMetadata in 1:dNumberMetadata)
+  for( iMetadata in 1:dNumberMetadata )
   {
-    vCurrentMetadata = vdCurMetadata[iMetadata,]
+    vCurrentMetadata = vdCurMetadata[ iMetadata, ]
 
     # Test to see if the data is continuous or not
-    if(sum(sapply(vCurrentMetadata,funcNumericIsInt))==0)
+    if( sum( sapply( vCurrentMetadata, funcNumericIsInt ) ) == 0 )
     {
-      iCommon = intersect(viNonZeroSpikedBugs, which(vCurrentMetadata!=0))
-      if( length(iCommon) < iMinSpikedSamples )
+      iCommon = intersect( viNonZeroSpikedBugs, which( vCurrentMetadata != 0 ) )
+      if( length( iCommon ) < iMinSpikedSamples )
       {
         fPass = FALSE
       }
-      viCommon = c(viCommon, length(iCommon))
+      viCommon = c( viCommon, length( iCommon ) )
 
     } else {
       # Check factor data
       # Dummied means there is going to be two values, 1s and 2s 2s being the level of interest.
       # So you are interested in those things not == 1 which is everything but that the level of interest.
-      if(fDummyFactorData)
+      if( fDummyFactorData )
       {
-        iCommon = intersect(viNonZeroSpikedBugs, which(vCurrentMetadata!=1))
-        if( length(iCommon) < iMinSpikedSamples )
+        iCommon = intersect( viNonZeroSpikedBugs, which( vCurrentMetadata != 1 ) )
+        if( length( iCommon ) < iMinSpikedSamples )
         {
           fPass = FALSE
         }
-        viCommon = c(viCommon, length(iCommon) )
+        viCommon = c( viCommon, length( iCommon ) )
 
       } else {
         # Not dummied
         # Check for each level
         # Store each level and then set diff like normal.
         # At the very end each level will be checked if Non dummying is used.
-        vstrLevels = levels(as.factor(vCurrentMetadata))
-        iMinSamplesPerLevel = ceiling( iMinSpikedSamples/length(vstrLevels) )
+        vstrLevels = levels( as.factor( vCurrentMetadata ) )
+        iMinSamplesPerLevel = ceiling( iMinSpikedSamples / length( vstrLevels ) )
 
         for( strLevel in vstrLevels )
         {
-          iCommon = intersect(viNonZeroSpikedBugs, which(vCurrentMetadata==strLevel))
-          if( length(iCommon) < iMinSamplesPerLevel)
+          iCommon = intersect( viNonZeroSpikedBugs, which( vCurrentMetadata == strLevel ) )
+          if( length( iCommon ) < iMinSamplesPerLevel )
           {
             fPass = FALSE
           }
-          viCommon = c(viCommon, length(iCommon) )
+          viCommon = c( viCommon, length( iCommon ) )
         }
       }
     }
   }
   # All data / levels passes in this spiked relationship
-  return(list(PASS=fPass, CommonCounts=viCommon))
+  return( list( PASS = fPass, CommonCounts = viCommon ) )
 }
 
 
 funcRoundMatrix = function(
-### Round a sparse matrix. If a value is greater than o but less than 1 then set to zero and then round.
+### Round a sparse matrix. If a value is greater than 0 but less than the minimal number then set to the minimal number and then round.
 ### This keeps the current level of sparsity and does not add more zeros.
 mtrxData,
 ### Matrix of data values to round
-vdLeftOver
-### Left over signal to use
+fZeroInflated = FALSE
+### Indicates if zero inflation is used.
 ){
-  vdSubCount = intersect( which( mtrxData < 1 ), which( mtrxData > 0 ) )
-
-  mtrxData[ vdSubCount ] = 1
+  if( fZeroInflated )
+  {
+    vdSubCount = intersect( which( mtrxData < 1 ), which( mtrxData > 0 ) )
+    mtrxData[ vdSubCount ] = 1
+  }
   return( round( mtrxData ) )
 }
 
@@ -2080,79 +2039,6 @@ iTargetReadDepth
     mtrxData[ viMaxFeature, viMinSample ] = iHold 
   }
 
-  return(mtrxData)
-}
-
-
-funcShuffleMatrix1 = function(
-### Shuffle in left over singal into the matrix
-mtrxData,
-### Matrix of values (rows are features, columns are samples)
-vdFeatureMus,
-### Vector of mus for the features
-vdShuffleIn
-### Vector of values to shuffle into each sample (positionally, first vdShuffleIn entry into first sample).
-){
-  print("Start funcShuffleMatrix")
-  # Add back in left over counts
-  vdFeatureMeans = funcGetRowMetric(mtrxData,mean)
-
-  # Make left over an int
-  viLeftOver = floor(vdShuffleIn)
-  # Number of samples
-  iNumberSamples = ncol(mtrxData)
-
-  for(iShuffle in 1:iNumberSamples)
-  {
-    # Shuffle back in signal but not in zero locations
-    if(viLeftOver[iShuffle] > 0)
-    {
-      # Find out which are zero locations
-      viSampleZeros = which(mtrxData[,iShuffle]==0)
-
-      for(iCountIndex in 1:viLeftOver[iShuffle])
-      {
-        # For every count
-        # Select the feature location most differing from but not going over it's expected mean
-        # If all go over just randomly select the rest
-        # Get difference of expected and actual mean
-        vdDifference = vdFeatureMus - vdFeatureMeans
-      
-        # If there are zero locations make sure they are not selected
-        if(length(viSampleZeros)>0)
-        {
-          vdDifference[viSampleZeros] = min(vdDifference)-1
-        }
-        dMax = max(vdDifference)
-
-        # Add a count to the feature location
-        # If dMax is less than zero then all features have their means so, if any more counts are needed, added randomly
-        # Otherwise do not add randomly, add by difference and
-        iShuffleTo = 0
-        if(dMax < 0)
-        {
-          # Do not select zero locations
-          iShuffleTo = setdiff(1:length(vdDifference), viSampleZeros)
-          if(length(iShuffleTo)>1)
-          {
-            iShuffleTo = sample(x=iShuffleTo, size=1)
-          }
-        } else {
-          iShuffleTo = which(vdDifference == dMax)
-          if(length(iShuffleTo)>1){iShuffleTo = sample(x=iShuffleTo, size=1)}
-        }
-
-        # Update the data and the means
-        mtrxData[iShuffleTo,iShuffle] = mtrxData[iShuffleTo,iShuffle] + 1
-        vdFeatureMeans[iShuffleTo] = vdFeatureMeans[iShuffleTo] + 1/iNumberSamples
-        viLeftOver[iShuffle] = viLeftOver[iShuffle] - 1
-      }
-    }
-    
-    # Update the feature means
-    vdFeatureMeans = funcGetRowMetric(mtrxData,mean)
-  }
-  print("Stop funcShuffleMatrix")
   return(mtrxData)
 }
 
@@ -2261,7 +2147,7 @@ iThreshold = NA
 
 
 funcUpdateDistributionToExpectation = function(
-### Updates a distribution to the mean while keeping the shape.
+### Updates a distribution to the mean while keeping the shape. If any expectation is less than 1, we make them equal to 1.
 vdFeatures,
 ### Distribution of counts
 vdLeftOver,
@@ -2269,8 +2155,13 @@ vdLeftOver,
 dExp
 ### The expectation to which to update the distribution
 ){
+  # If the expectation is less than 1 we can get features that are all zero
+  # especially after rounding a not zero-inflated matrix
+  # So here a control is put in to make sure the expectation is no less than 1
+  if( dExp < 1 ){ dExp = 1 }
+
   # Used to ignore zeros in these calculations
-  viNonZeroIndices = which( vdFeatures > 0 )
+  vdUpdateIndices = which( vdFeatures > 0 )
 
   # Get the amount of change in signal needed
   dDifference = dExp - mean( vdFeatures )
@@ -2283,7 +2174,10 @@ dExp
     # Add to the distributio and shift it up
     if(dDifference > 0)
     {
-      vdUpdateIndices = sample( viNonZeroIndices, dCounts, replace = TRUE, prob = vdFeatures[ viNonZeroIndices ] / sum( vdFeatures[ viNonZeroIndices ] ) )
+      if( length( vdUpdateIndices ) > 1 )
+      {
+        vdUpdateIndices = sample( vdUpdateIndices, dCounts, replace = TRUE, prob = vdFeatures[ vdUpdateIndices ] / sum( vdFeatures[ vdUpdateIndices ] ) )
+      }
       for( iIndex in vdUpdateIndices )
       {
         vdFeatures[ iIndex ] = vdFeatures[ iIndex ] + 1
@@ -2362,96 +2256,6 @@ iTargetSum
     }
   }
   return( vdDistribution )
-}
-
-
-funcZeroCorrectMatrix = function(
-### Make sure there are no samples which sum to zero
-### If there are take a measurement from a sample in the sample feature
-### And adjust the left over values for read depth adjustments.
-mtrxData,
-### Matrix of values (rows are features, columns are samples).
-vdFeatureMus,
-### Vector of mus for the features
-vdLeftOver
-### Counts to be suffled into each sample (column) by position.
-### First element in the vector for the first element in the matrix
-### Here, this is used to store or take values from the samples when correcting
-### for zeros.
-){
-  print("Start funcZeroCorrectMatrix")
-
-  # Which samples have no signal in them
-  vdZeroReadDepth = which(colSums(mtrxData)==0)
-  # Find which samples have some signal in them (how many features have signal in them)
-  viNotZeroOccurences = apply(mtrxData,2,function(x) length(which(x>0)))
-  if(!length(viNotZeroOccurences)){viNotZeroOccurences = 0}
-  # Find the average non-zero occurences in the samples, this is how many features will be given signal in a sample.
-  iLowestMeasurementOccurence = floor(mean(viNotZeroOccurences))
-
-  # If there are samples with read depth equal to zeros
-  if(length(vdZeroReadDepth))
-  {
-    # If there are not enough features to move around to fill in zero samples
-    # Add in features with signal based on the expected means
-    # and remove the added signal from the feature in another sample (from the left over signal)
-    if(iLowestMeasurementOccurence < 1)
-    {
-      # For each of the samples with zero sum
-      # Give a random 1 to a random feature in reverse order of feature mean
-      viFeaturesOrder = order(vdFeatureMus,decreasing=FALSE)
-
-      # Incase there are less features than samples shift the indices so that the features
-      # are cycled through the correct amount of times (which == the # samples)
-      vdFeatureIndices = funcCycleVectorIndices(iElementsToPick=length(vdZeroReadDepth), iVectorLength=length(viFeaturesOrder))
-
-      # For each zero sample
-      for(iSampleIndex in 1:length(vdZeroReadDepth))
-      {
-        # Add a count to the zero sample and remove it from the left over signal to later shuffle in.
-        mtrxData[viFeaturesOrder[vdFeatureIndices[iSampleIndex]], vdZeroReadDepth[iSampleIndex]] = 1
-        vdLeftOver[vdZeroReadDepth[iSampleIndex]] = vdLeftOver[vdZeroReadDepth[iSampleIndex]] - 1
-        # Get the sample with the max amount of signal
-        # If there are ties randomly sample one from the group
-        vdRds = colSums(mtrxData)
-        viMaxRds = which(vdRds == max(vdRds))
-        if(length(viMaxRds)>1){viMaxRds = sample(viMaxRds,1)}
-
-        # Update the matrix and the left over vector
-        mtrxData[viFeaturesOrder[vdFeatureIndices[iSampleIndex]],viMaxRds] = mtrxData[viFeaturesOrder[vdFeatureIndices[iSampleIndex]],viMaxRds] - 1
-        vdLeftOver[viMaxRds] = vdLeftOver[viMaxRds] + 1
-      }
-    } else {
-      # Start reordering features until there are samples with atleast one measure in each sample
-      # For each sample that has 0 read depth
-      for(iIndex in vdZeroReadDepth)
-      {
-        # Give counts to iLowestMeasurmentOccurence Features
-        # Attempting to make these samples like an average sample
-        for(iMeasurmentOccurenceIndex in 1:iLowestMeasurementOccurence)
-        {
-          # Find the sample with the most measurements
-          viMeasurements = apply(mtrxData,2,function(x) length(which(x>0)))
-          dMaxSample = which(viMeasurements == max(viMeasurements))
-          if(length(dMaxSample)>1){ dMaxSample = sample(dMaxSample,1) }
-
-          # Randomly select one of the signal features of the sample
-          iTake = sample(which(mtrxData[,dMaxSample]>0),1)
-          iTakeValue = min(mtrxData[iTake,dMaxSample], vdLeftOver[iIndex])
-
-          # Take the value from the more measurement occuring sample and shuffle it to the 
-          # zero measurement occuring sample in the same feature
-          # Update the left over measurements accordingly
-          vdLeftOver[dMaxSample] = vdLeftOver[dMaxSample]+ iTakeValue
-          vdLeftOver[iIndex] = vdLeftOver[iIndex] - iTakeValue
-          mtrxData[iTake,iIndex] = mtrxData[iTake,iIndex] + iTakeValue
-          mtrxData[iTake,dMaxSample] = mtrxData[iTake,dMaxSample] - iTakeValue
-        }
-      }
-    }
-  }
-  print("Stop funcZeroCorrectMatrix")
-  return(list(Data=mtrxData,LeftOver=vdLeftOver))
 }
 
 
