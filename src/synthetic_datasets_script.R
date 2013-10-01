@@ -622,7 +622,7 @@ fVerbose = FALSE
                                        vdExp = vdExp,
                                        vdMu = vdMu, 
                                        vdSD = vdSD, 
-                                       vdPercentZero = dPercentZero,
+                                       vdPercentZero = vdPercentZero,
                                        lSDRel = lSDRel,
                                        lPercentZeroRel = lPercentZeroRel,
                                        dBetaGrandSD = dBetaGrandSD,
@@ -1002,7 +1002,7 @@ iMinNumberSamples,
 iReadDepth,
 ### Simulated read depth for sample creation
 vdExp = NA,
-### The vector of expectations for each feature. If not provided one will be generated and vdMu, vdSD, and dPercentZero will be reset
+### The vector of expectations for each feature. If not provided one will be generated and vdMu, vdSD, and vdPercentZero will be reset
 vdMu = NA,
 ### Vector of Mu parameters for the original exp distribution (means of features) if not supplied, one will be generated
 vdPercentZero = NA,
