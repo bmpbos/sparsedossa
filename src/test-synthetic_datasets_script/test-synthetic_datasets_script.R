@@ -1,5 +1,6 @@
+print("SSSTART 1")
 c_strDir <- file.path(getwd( ),"..")
-
+print("SSSTART 2")
 source(file.path(c_strDir,"synthetic_datasets_script.R"))
 
 ########## General Controls
@@ -8,7 +9,15 @@ c_iRoundingPercision = 2
 c_fVerbose = TRUE
 sCalibrateFile = "Calibrate-RLNorm.tsv"
 sCalibrateSparseFile = "Calibrate-Sparse.tsv"
-##########
+
+########## Original calibration file data
+c_vdExpLog = c( -0.877070018720874,1.24126858906963,-0.71743987312899,-0.579818495252942,-0.916290731874155,-1.42711635564015,-0.350976922824095,-2.68824757380603,4.45611317802658,-1.39432653281715,-0.601479992034121,-1.03282454813011,4.6737256284836,2.52348613175548,-0.867500567704723,-1.6094379124341,-2.57702193869581,0.799307376388336,1.99768903980758,-1.58963528513792,7.55066334615255,3.13948623719869,1.50318811259139,0.0353671438372913,2.43220886078755,4.85881966369566,1.67372640231646,1.92629036218566,3.4618533755355,1.93036131866568,4.68792920115586,-0.0921152889078056,1.84498423046535,-2.02495335639577,-1.83258146374831,2.14710019015365,-0.785262469467751,1.0123279200711,0.542324290825362,3.30630044979247,-1.65025990695436,0.525911261184032,2.43571640559723,-0.653926467406664,4.43585172136879,0.790273891290668,0.72270598280149,0.0506931143155182,-0.71743987312899,1.21669157673371,5.10315370174078,1.5295285292058,-1.20397280432594,3.88362353090645,-2.52572864430826,1.82841278687609,-1.20397280432594,4.13523055469444,-0.524248644098131,-0.551647618286246,-0.0790432073404529,-1.24479479884619,6.32837954283977,-1.10262031006565,-0.20334092401803,-0.415515443961666,0.5607579925142,-0.233193887167711,-2.52572864430826,5.19168938132325,5.3469170363841,5.12508240135524,-1.80788885115794,-1.65025990695436,5.59600422381589,6.02419307773006,0.845009529869191,-2.52572864430826,-0.317454230785451,2.86539577182599,2.59614982860398,-0.776528789498996,0.501986675098786,-0.742337424750717,0.249980205267769,3.63989927189222,-1.09064411901893,6.50169199200066,2.4308023907948,2.11529119457353,4.66317490827467,1.17803942229943,4.3994244118503,5.69332801675234,3.43501893013767,-3.03655426807425,-0.988861424708991,4.46558622777281,2.94528073005789,3.11688739511046,4.15211019907224,3.28929700916393,2.14006616349627,5.78226088252746,0.681074599325676,3.17588481306311,5.01359092192189,1.95103982687531,0.877134016672961,2.47754629538171,4.2285840374303,4.32772883126603,-1.57021719928082,-2.88240358824699,-1.96611285637283,-1.78379129957888,0.29266961396282,2.67662833109387,1.04802050255205,1.04942204447734,-1.58963528513792,0.0544881852840698,-0.0877389143080067,1.38729386145297,-2.52572864430826,-0.2484613592985,-1.80788885115794,-0.867500567704723,-3.12356564506388,-1.76026080216868,-0.988861424708991,-0.877070018720874,0.289680075114454,-0.53785429615391,-2.15416508787577,-1.99510039324608,0.666803205220343,1.70765295993106,-2.52572864430826,5.39355481643488,1.92861865194525,1.27759494419655,0.227932068046007,-2.12026353620009,4.45066611039057,0.0769610411361284,1.26186428274171,1.57608793275255,3.5184469417124,0.710987098688276,-2.95651156040071,0.4265740713184,1.86128553187667,-0.661648513500574,-2.12026353620009,2.77832225408754,5.86404018285232,5.91260530552877 )
+
+c_vdExp = c(0.416,3.46,0.488,0.56,0.4,0.24,0.704,0.068,86.152,0.248,0.548,0.356,107.096,12.472,0.42,0.2,0.076,2.224,7.372,0.204,1902.004,23.092,4.496,1.036,11.384,128.872,5.332,6.864,31.876,6.892,108.628,0.912,6.328,0.132,0.16,8.56,0.456,2.752,1.72,27.284,0.192,1.692,11.424,0.52,84.424,2.204,2.06,1.052,0.488,3.376,164.54,4.616,0.3,48.6,0.08,6.224,0.3,62.504,0.592,0.576,0.924,0.288,560.248,0.332,0.816,0.66,1.752,0.792,0.08,179.772,209.96,168.188,0.164,0.192,269.348,413.308,2.328,0.08,0.728,17.556,13.412,0.46,1.652,0.476,1.284,38.088,0.336,666.268,11.368,8.292,105.972,3.248,81.404,296.88,31.032,0.048,0.372,86.972,19.016,22.576,63.568,26.824,8.5,324.492,1.976,23.948,150.444,7.036,2.404,11.912,68.62,75.772,0.208,0.056,0.14,0.168,1.34,14.536,2.852,2.856,0.204,1.056,0.916,4.004,0.08,0.78,0.164,0.42,0.044,0.172,0.372,0.416,1.336,0.584,0.116,0.136,1.948,5.516,0.08,219.984,6.88,3.588,1.256,0.12,85.684,1.08,3.532,4.836,33.732,2.036,0.052,1.532,6.432,0.516,0.12,16.092,352.144,369.668)
+
+c_vdPercentZero = c( 0.964,0.672,0.988,0.92,0.988,0.952,0.88,0.984,0.428,0.936,0.864,0.916,0.472,0.508,0.972,0.956,0.98,0.92,0.672,0.952,0.064,0.72,0.832,0.984,0.66,0.332,0.864,0.908,0.728,0.884,0.392,0.888,0.748,0.96,0.976,0.84,0.952,0.972,0.788,0.948,0.956,0.784,0.848,0.944,0.7,0.972,0.9,0.884,0.924,0.776,0.096,0.696,0.936,0.58,0.984,0.772,0.936,0.352,0.96,0.88,0.932,0.936,0.072,0.952,0.92,0.912,0.876,0.92,0.968,0.136,0.052,0.12,0.988,0.944,0.2,0.02,0.88,0.98,0.916,0.464,0.452,0.892,0.8,0.932,0.78,0.22,0.936,0.212,0.504,0.608,0.484,0.756,0.256,0.064,0.752,0.988,0.944,0.54,0.948,0.824,0.556,0.492,0.548,0.016,0.788,0.932,0.092,0.48,0.784,0.396,0.152,0.732,0.972,0.984,0.98,0.98,0.932,0.7,0.884,0.972,0.924,0.916,0.936,0.94,0.984,0.944,0.964,0.936,0.984,0.988,0.964,0.98,0.912,0.952,0.972,0.972,0.928,0.728,0.976,0.416,0.932,0.952,0.952,0.984,0.416,0.876,0.968,0.772,0.608,0.82,0.988,0.948,0.892,0.932,0.98,0.84,0.216,0.612 )
+
+c_vdSD = c(1.29288222850903,1.11656790017514,1.92641197859569,1.02105677634939,1.48524719110303,0.870378434477115,0.959635078912515,0.583945419522526,1.79348082582133,0.669655926119326,0.600623613084851,0.853648651939737,1.72677780263148,1.26147280133706,0.734982664869215,0.914826396438766,0.719267497333394,1.36445803823611,1.24480603198208,0.554831763342855,1.70747836197823,1.49834967389745,1.10454940596015,1.86473285616939,1.1385848782746,1.4834337653741,1.52109111483939,1.46795133122398,1.98185399587786,1.45950174080202,1.59366893620959,1.03774612854838,1.44800233026963,0.592107847055163,0.594358593206619,1.6320293719476,0.962434020985145,2.07513585839894,1.09851647985654,2.49835214683079,0.976161247538305,1.10000715772956,1.80999152731209,1.15455694103497,2.29447750308131,1.84856812708444,1.18034213829724,0.938036155588448,0.874004621310478,1.09917849384688,1.7434683468884,1.16454079297455,0.728859758118786,1.77099312319428,0.694335857646383,1.37928702782278,0.76009658704113,1.68201745534149,1.35054907979964,0.832670104071402,1.16865528891661,0.847430958060489,1.5524935357744,0.904423733977812,1.17860611568599,1.03253595130507,1.29763235709243,1.06536965945072,0.27424593232245,1.57376990950369,1.34803070031666,1.55956753125577,1.10470442660092,0.723280490439043,1.5977407349549,0.930850462498865,1.29438882062999,0.803822732571653,0.986243910474401,1.29553952694038,1.28823184910116,0.685283831641858,0.946823554040535,0.918659788437422,0.788068631230099,1.22250675713921,0.819552326795716,1.59822401385881,1.17461364613988,1.17170376599601,1.87008425727893,1.11396621015164,1.41133141289528,1.38435992039007,1.37755755926622,0.256091402042052,0.758162389852548,1.64572542671349,2.14130589750552,1.88179351330357,1.41089291208342,1.60224644297979,1.14667348092866,0.942793883548745,0.922341311891637,1.96208871494235,1.56299028564406,1.01027693685149,1.02567334310102,1.17471546316181,1.46981919823393,2.08186319151382,1.17306243431671,0.758804728095711,0.843696416029418,0.670981308304214,1.15201957724894,1.56952695767858,1.42621506263831,2.07361684190959,0.751160258829315,1.2533916605354,1.41373507230623,1.73889522835292,1.00489987867617,1.23624923115956,0.556618232166134,1.1257008349353,0.612456251969496,0.824857904639158,1.25061326841638,1.27907129252095,1.03099622126377,1.1743855423561,0.685788698475515,1.22474258547412,1.49553187222792,1.23068112783264,0.421237925499913,2.25088768513035,2.24179750266376,1.88939818126567,1.42078414973316,0.830682791171414,1.8296524259332,1.16414627194934,2.22431472689055,1.27214629360624,1.64269420055488,1.20601967125448,0.294925311390253,1.7163875280654,1.62333836869266,1.16870601697591,0.618214596868589,1.751366359945,2.40861367145808,1.4507511261923)
 
 ########## Start testing
 
@@ -24,23 +33,8 @@ sCalibrateSparseFile = "Calibrate-Sparse.tsv"
 ### TODO(Timothy): Make a file and calculate the correct relationships and make sure that is found here.
 
 
-### funcCycleVectorIndices
-context( "Test funcCycleVectorIndices" )
-viExpected1 <- c( 1, 2, 1, 2, 1, 2 )
-viExpected2 <- c( 1, 2, 3, 1, 2, 3, 1, 2 )
-viExpected3 <- 1:10
-viExpected4 <- 1
-viExpected5 <- rep( 1, 20 )
-test_that( "Test that funcCycleVectorIndices cycles through indices correctly.", {
-  expect_equal( viExpected1, funcCycleVectorIndices( 6, 2 ) )
-  expect_equal( viExpected2, funcCycleVectorIndices( 8, 3 ) )
-  expect_equal( viExpected3, funcCycleVectorIndices( 10, 20 ) )
-  expect_equal( viExpected4, funcCycleVectorIndices( 1, 100 ) )
-  expect_equal( viExpected5, funcCycleVectorIndices( 20, 1 ) )
-})
-
-
 ### funcEstimateFeatureSD
+### Pass 10-22-2013
 context("Test funcEstimateFeatureSD")
 test_that( "Test that funcEstimateFeatureSD gives the correct answer.", {
   expect_equal( 0, funcEstimateFeatureSD( 0, 12834 ) )
@@ -52,6 +46,7 @@ test_that( "Test that funcEstimateFeatureSD gives the correct answer.", {
 
 
 ### funcEstimateGrandSD
+### PASS 10-22-2013
 context("Test funcEstimateGrandSD")
 test_that( "Test that funcEstimateGrandSD gives the correct answer.", {
   expect_equal( 0, funcEstimateGrandSD( 0, 12834 ) )
@@ -63,17 +58,39 @@ test_that( "Test that funcEstimateGrandSD gives the correct answer.", {
 
 
 ### funcEstimatePercentZero
+### PASS 10-22-2013
 context("Test funcEstimatePercentZero")
 test_that( "Test that funcEstimatePercentZero gives the correct answer.", {
-  expect_equal( 0, funcEstimatePercentZero( 0, 12834 ) )
-  expect_equal( 1, funcEstimatePercentZero( 1, 1 ) )
-  expect_equal( 1.5, funcEstimatePercentZero( .5, 3 ) )
-  expect_equal( 1010, funcEstimatePercentZero( 101, 10 ) )
-  expect_equal( -24, funcEstimatePercentZero( -3, 8 ) )
+  expect_equal( 0.125, funcEstimatePercentZero( vdExpLog = .5, dBetaZero = .2, dBeta2Zero = .1 ) )
+  expect_equal( 0.125, funcEstimatePercentZero( vdExpLog = .5, dBetaZero = .2, dBeta2Zero = .1, dInterceptZero = 0 ) )
+  expect_equal( 0.125, funcEstimatePercentZero( vdExpLog = .5, dBetaZero = .2, dBeta2Zero = .1, dInterceptZero = 0, dScale = 1 ) )
+  expect_equal( 0.39, funcEstimatePercentZero( vdExpLog = .3, dBetaZero = 1, dBeta2Zero = 1, dInterceptZero = 0, dScale = 1 ) )
+  expect_equal( 1, funcEstimatePercentZero( vdExpLog = .3, dBetaZero = 5, dBeta2Zero = 1.3, dInterceptZero = 3, dScale = 2 ) )
+  expect_equal( 0, funcEstimatePercentZero( vdExpLog = .67, dBetaZero = .3, dBeta2Zero = .1, dInterceptZero = -77, dScale = .2 ) )
+})
+
+
+###funcForceMinCountsInMinSamples
+# PASS 10-22-2013
+vdFeature1 = rep(1,10)
+vdFeature2 = 1:10
+context("Test funcForceMinCountsInMinSamples")
+test_that( "Test that funcForceMinCountsInMinSamples increases features to the min.",
+{
+  expect_equal( 10, length( which( funcForceMinCountsInMinSamples(vdFeature1, 5, 10) >= 5 ) ) )
+  expect_equal( 5, length( which( funcForceMinCountsInMinSamples(vdFeature1, 5, 5) >= 5 ) ) )
+  expect_equal( 10, length( which( funcForceMinCountsInMinSamples(vdFeature1, 20, 10) >= 20 ) ) )
+  expect_equal( 10, length( which( funcForceMinCountsInMinSamples(vdFeature2, 5, 10) >= 5 ) ) )
+  expect_equal( 6, length( which( funcForceMinCountsInMinSamples(vdFeature2, 5, 5) >= 5 ) ) )
+  expect_equal( 10, length( which( funcForceMinCountsInMinSamples(vdFeature2, 20, 10) >= 20 ) ) )
+  expect_equal( vdFeature1, funcForceMinCountsInMinSamples(vdFeature1, 0, 10) )
+  expect_equal( vdFeature2, funcForceMinCountsInMinSamples(vdFeature2, 1, 10) )
+  expect_equal( vdFeature2, funcForceMinCountsInMinSamples(vdFeature2, 0, 0) )
 })
 
 
 ### funcGenerateExpVectorParameters
+### PASS 10-22-2013
 context( "Test funcGenerateExpVectorParameters" )
 dMu <- 2
 dSD <- 3
@@ -85,13 +102,13 @@ dRelationship <- dLogSD / dExp
 dReadDepth <- dExp * iCount
 vdDistribution <- rlnorm( iCount, dLogMu, dLogSD )
 lResult = funcGenerateExpVectorParameters(vdDistribution)
-testthat( "Test that funcGenerateExpVectorParameters gives the correct answer for good case 1.", {
-  expect_equal( round( dLogMu, 2 ), round( lResult$GrandLogMu, 2 ) )
-  expect_equal( round( dExp, 2), round( lResult$GrandExp, 2 ) )
-  expect_equal( round( dLogSD, 2), round( lResult$GrandLogSD, 2 ) )
+test_that( "Test that funcGenerateExpVectorParameters gives the correct answer for good case 1.", {
+  expect_equal( round( dLogMu, 1 ), round( lResult$GrandLogMu, 1 ) )
+  expect_equal( round( dExp, 1), round( lResult$GrandExp, 1 ) )
+  expect_equal( round( dLogSD, 1), round( lResult$GrandLogSD, 1 ) )
   expect_true( dReadDepth - ( dReadDepth * 0.1 ) < lResult$dReadDepth )
   expect_true( dReadDepth + ( dReadDepth * 0.1 ) > lResult$dReadDepth )
-  expect_equal( round( dRelationship, 2 ), round( lResult$GrandLogSDBeta, 2 ) )
+  expect_equal( round( dRelationship, 1 ), round( lResult$GrandLogSDBeta, 1 ) )
 })
 
 dMu <- 5
@@ -104,13 +121,13 @@ dRelationship <- dLogSD / dExp
 dReadDepth <- dExp * iCount
 vdDistribution <- rlnorm( iCount, dLogMu, dLogSD )
 lResult = funcGenerateExpVectorParameters(vdDistribution)
-testthat( "Test that funcGenerateExpVectorParameters gives the correct answer for good case 2.", {
-  expect_equal( round( dLogMu, 2 ), round( lResult$GrandLogMu, 2 ) )
-  expect_equal( round( dExp, 2), round( lResult$GrandExp, 2 ) )
-  expect_equal( round( dLogSD, 2), round( lResult$GrandLogSD, 2 ) )
+test_that( "Test that funcGenerateExpVectorParameters gives the correct answer for good case 2.", {
+  expect_equal( round( dLogMu, 1 ), round( lResult$GrandLogMu, 1 ) )
+  expect_equal( round( dExp, 1), round( lResult$GrandExp, 1 ) )
+  expect_equal( round( dLogSD, 1), round( lResult$GrandLogSD, 1 ) )
   expect_true( dReadDepth - ( dReadDepth * 0.1 ) < lResult$dReadDepth )
   expect_true( dReadDepth + ( dReadDepth * 0.1 ) > lResult$dReadDepth )
-  expect_equal( round( dRelationship, 2 ), round( lResult$GrandLogSDBeta, 2 ) )
+  expect_equal( round( dRelationship, 1 ), round( lResult$GrandLogSDBeta, 1 ) )
 })
 
 
@@ -132,16 +149,16 @@ vdExp <- NA
 vdMu <- NA
 vdSD <- NA
 vdPercentZero <- NA
-dBetaSD <- 1
-dBetaZero <- 0
 dBetaGrandSD <- log( 3 ) / ( iReadDepth / iNumberFeatures )
+lSDRel = list(BetaSD = 1, InterceptSD = 2 )
+lPercentZeroRel = list(InterceptZero = 2.3, BetaZero = 0, Beta2Zero = 1.56)
 
-lResult = funcGenerateFeatureParameters( iNumberFeatures, iNumberSamples, iMinNumberSamples, iReadDepth, vdExp, vdMu, vdSD, vdPercentZero, dBetaSD, dBetaZero, dBetaGrandSD )
-testthat( "funcGenerateFeatureParameters: Generating all vectors." {
-  expect_equal( round( iReadDepth / iNumberFeatures, 2 ), round( mean( lResult$exp ), 2 ) )
-  expect_equal( iReadDepth, sum( sapply( 1:length( lResult$exp ), function( x ) funcGetExp( lResult$mu[ x ], lResult$sd[ x ]) ) ) )
-  expect_equal( round( lResult$exp, 2), round( lResult$sd, 2) )
-  expect_equal( 0, sum( lResult$PercentZero ) )
+lResult = funcGenerateFeatureParameters( int_number_features = iNumberFeatures, int_number_samples = iNumberSamples, iMinNumberSamples = iMinNumberSamples, iReadDepth = iReadDepth, vdExp = vdExp, vdMu = vdMu, vdSD = vdSD, vdPercentZero = vdPercentZero, lSDRel = lSDRel, lPercentZeroRel = lPercentZeroRel, dBetaGrandSD = dBetaGrandSD )
+test_that( "funcGenerateFeatureParameters: Generating all vectors.", {
+  expect_equal( round( iReadDepth / iNumberFeatures ), round( mean( lResult$exp ) ) )
+  expect_equal( iReadDepth, ceiling( sum( sapply( 1:length( lResult$exp ), function( x ) funcGetExp( lResult$mu[ x ], lResult$sd[ x ]) ) ) ) )
+  expect_equal( lResult$exp, sapply( 1:length( lResult$mu ), function(x) funcGetExp( lResult$mu[x], lResult$sd[x] ) ) )
+  expect_true( length( lResult$PercentZero ) == 0 )
 })
 
 iNumberFeatures <- 10
@@ -152,15 +169,16 @@ vdExp <- c(37.45276, 40.38829, 29.10671, 41.38829, 38.95904, 33.30842, 37.38829,
 vdMu <- NA
 vdSD <- NA
 vdPercentZero <- NA
-dBetaSD <- 1
-dBetaZero <- 0
 dBetaGrandSD <- log( 3 ) / ( iReadDepth / iNumberFeatures )
+lSDRel = list(BetaSD = 1.1, InterceptSD = 7.2 )
+lPercentZeroRel = list(InterceptZero = .32, BetaZero = 2, Beta2Zero = .56)
 
-lResult = funcGenerateFeatureParameters( iNumberFeatures, iNumberSamples, iMinNumberSamples, iReadDepth, vdExp, vdMu, vdSD, vdPercentZero, dBetaSD, dBetaZero, dBetaGrandSD )
-testthat( "funcGenerateFeatureParameters: Starting with Mu and SD vector." {
-  expect_equal( round( iReadDepth / iNumberFeatures, 2 ), round( mean( lResult$exp ), 2 ) )
-  expect_equal( iReadDepth, sum( sapply( 1:length( lResult$exp ), function( x ) funcGetExp( lResult$mu[ x ], lResult$sd[ x ]) ) ) )
-  expect_equal( round( lResult$exp, 2), round( lResult$sd, 2) )
+lResult = funcGenerateFeatureParameters( int_number_features = iNumberFeatures, int_number_samples = iNumberSamples, iMinNumberSamples = iMinNumberSamples, iReadDepth = iReadDepth, vdExp = vdExp, vdMu = vdMu, vdSD = vdSD, vdPercentZero = vdPercentZero, lSDRel = lSDRel, lPercentZeroRel = lPercentZeroRel, dBetaGrandSD = dBetaGrandSD )
+test_that( "funcGenerateFeatureParameters: Starting with Mu and SD vector.", {
+  expect_equal( round( iReadDepth / iNumberFeatures ), round( mean( lResult$exp ) ) )
+  expect_equal( iReadDepth, ceiling( sum( sapply( 1:length( lResult$exp ), function( x ) funcGetExp( lResult$mu[ x ], lResult$sd[ x ]) ) ) ) )
+  expect_equal( lResult$exp, sapply( 1:length( lResult$mu ), function(x) funcGetExp( lResult$mu[x], lResult$sd[x] ) ) )
+#TODO#
   expect_equal( 0, sum( lResult$PercentZero ) )
   expect_equal( round( lResult$mu, 2), round( c(0.05285117, 0.04323700, 0.09918717, 0.04046334, 0.04762098, 0.07139393, 0.05309049, 0.08947141, 0.06587467, 0.04046334), 2 ) )
   expect_equal( round( lResult$sd, 2), round( c(37.45276, 40.38829, 29.10671, 41.38829, 38.95904, 33.30842, 37.38829, 30.38829, 34.38829, 41.38829), 2 ) )
@@ -175,12 +193,12 @@ vdExp <- c(37.45276, 40.38829, 29.10671, 41.38829, 38.95904, 33.30842, 37.38829,
 vdMu <- c(0.05285117, 0.04323700, 0.09918717, 0.04046334, 0.04762098, 0.07139393, 0.05309049, 0.08947141, 0.06587467, 0.04046334)
 vdSD <- NA
 vdPercentZero <- NA
-dBetaSD <- 1
-dBetaZero <- 0
+lSDRel = list(BetaSD = 5, InterceptSD = 8.4 )
+lPercentZeroRel = list(InterceptZero = 2.1, BetaZero = 41.2, Beta2Zero = 1.756)
 dBetaGrandSD <- log( 3 ) / ( iReadDepth / iNumberFeatures )
 
-lResult = funcGenerateFeatureParameters( iNumberFeatures, iNumberSamples, iMinNumberSamples, iReadDepth, vdExp, vdMu, vdSD, vdPercentZero, dBetaSD, dBetaZero, dBetaGrandSD )
-testthat( "funcGenerateFeatureParameters: Starting with Mu and SD and Mu vector." {
+lResult = funcGenerateFeatureParameters( int_number_features = iNumberFeatures, int_number_samples = iNumberSamples, iMinNumberSamples = iMinNumberSamples, iReadDepth = iReadDepth, vdExp = vdExp, vdMu = vdMu, vdSD = vdSD, vdPercentZero = vdPercentZero, lSDRel = lSDRel, lPercentZeroRel = lPercentZeroRel, dBetaGrandSD = dBetaGrandSD )
+test_that( "funcGenerateFeatureParameters: Starting with Mu and SD and Mu vector.", {
   expect_equal( round( iReadDepth / iNumberFeatures, 2 ), round( mean( lResult$exp ), 2 ) )
   expect_equal( iReadDepth, sum( sapply( 1:length( lResult$exp ), function( x ) funcGetExp( lResult$mu[ x ], lResult$sd[ x ]) ) ) )
   expect_equal( round( lResult$exp, 2), round( lResult$sd, 2) )
@@ -197,12 +215,12 @@ vdExp <- c(37.45276, 40.38829, 29.10671, 41.38829, 38.95904, 33.30842, 37.38829,
 vdMu <- c(0.05285117, 0.04323700, 0.09918717, 0.04046334, 0.04762098, 0.07139393, 0.05309049, 0.08947141, 0.06587467, 0.04046334)
 vdSD <- c(37.45276, 40.38829, 29.10671, 41.38829, 38.95904, 33.30842, 37.38829, 30.38829, 34.38829, 41.38829)
 vdPercentZero <- NA
-dBetaSD <- 1
-dBetaZero <- 0
+lSDRel = list(BetaSD = 1, InterceptSD = 2 )
+lPercentZeroRel = list(InterceptZero = 2.3, BetaZero = 0, Beta2Zero = 1.56)
 dBetaGrandSD <- log( 3 ) / ( iReadDepth / iNumberFeatures )
 
-lResult = funcGenerateFeatureParameters( iNumberFeatures, iNumberSamples, iMinNumberSamples, iReadDepth, vdExp, vdMu, vdSD, vdPercentZero, dBetaSD, dBetaZero, dBetaGrandSD )
-testthat( "funcGenerateFeatureParameters: Starting with Mu and SD and Mu vector." {
+lResult = funcGenerateFeatureParameters( int_number_features = iNumberFeatures, int_number_samples = iNumberSamples, iMinNumberSamples = iMinNumberSamples, iReadDepth = iReadDepth, vdExp = vdExp, vdMu = vdMu, vdSD = vdSD, vdPercentZero = vdPercentZero, lSDRel = lSDRel, lPercentZeroRel = lPercentZeroRel, dBetaGrandSD = dBetaGrandSD )
+test_that( "funcGenerateFeatureParameters: Starting with Mu and SD and Mu vector.", {
   expect_equal( round( iReadDepth / iNumberFeatures, 2 ), round( mean( lResult$exp ), 2 ) )
   expect_equal( iReadDepth, sum( sapply( 1:length( lResult$exp ), function( x ) funcGetExp( lResult$mu[ x ], lResult$sd[ x ]) ) ) )
   expect_equal( round( lResult$exp, 2), round( lResult$sd, 2) )
@@ -219,12 +237,12 @@ vdExp <- c(37.45276, 40.38829, 29.10671, 41.38829, 38.95904, 33.30842, 37.38829,
 vdMu <- c(0.05285117, 0.04323700, 0.09918717, 0.04046334, 0.04762098, 0.07139393, 0.05309049, 0.08947141, 0.06587467, 0.04046334)
 vdSD <- c(37.45276, 40.38829, 29.10671, 41.38829, 38.95904, 33.30842, 37.38829, 30.38829, 34.38829, 41.38829)
 vdPercentZero <- rep( 1, length( lResult$exp ) )
-dBetaSD <- 1
-dBetaZero <- 0
+lSDRel = list(BetaSD = 1, InterceptSD = 2 )
+lPercentZeroRel = list(InterceptZero = 2.3, BetaZero = 1, Beta2Zero = 1.56)
 dBetaGrandSD <- log( 3 ) / ( iReadDepth / iNumberFeatures )
 
-lResult = funcGenerateFeatureParameters( iNumberFeatures, iNumberSamples, iMinNumberSamples, iReadDepth, vdExp, vdMu, vdSD, vdPercentZero, dBetaSD, dBetaZero, dBetaGrandSD )
-testthat( "funcGenerateFeatureParameters: Starting with Mu and SD and Mu and PZ vector." {
+lResult = funcGenerateFeatureParameters( int_number_features = iNumberFeatures, int_number_samples = iNumberSamples, iMinNumberSamples = iMinNumberSamples, iReadDepth = iReadDepth, vdExp = vdExp, vdMu = vdMu, vdSD = vdSD, vdPercentZero = vdPercentZero, lSDRel = lSDRel, lPercentZeroRel = lPercentZeroRel, dBetaGrandSD = dBetaGrandSD )
+test_that( "funcGenerateFeatureParameters: Starting with Mu and SD and Mu and PZ vector.", {
   expect_equal( round( iReadDepth / iNumberFeatures, 2 ), round( mean( lResult$exp ), 2 ) )
   expect_equal( iReadDepth, sum( sapply( 1:length( lResult$exp ), function( x ) funcGetExp( lResult$mu[ x ], lResult$sd[ x ]) ) ) )
   expect_equal( round( lResult$exp, 2), round( lResult$sd, 2) )
@@ -232,33 +250,33 @@ testthat( "funcGenerateFeatureParameters: Starting with Mu and SD and Mu and PZ 
 })
 
 iNumberFeatures <- 100
-lResult = funcGenerateFeatureParameters( iNumberFeatures, iNumberSamples, iMinNumberSamples, iReadDepth, vdExp, vdMu, vdSD, vdPercentZero, dBetaSD, dBetaZero, dBetaGrandSD )
-testthat( "funcGenerateFeatureParameters: Starting with all vectors but wrong size." {
+lResult = funcGenerateFeatureParameters( int_number_features = iNumberFeatures, int_number_samples = iNumberSamples, iMinNumberSamples = iMinNumberSamples, iReadDepth = iReadDepth, vdExp = vdExp, vdMu = vdMu, vdSD = vdSD, vdPercentZero = vdPercentZero, lSDRel = lSDRel, lPercentZeroRel = lPercentZeroRel, dBetaGrandSD = dBetaGrandSD )
+testthat( "funcGenerateFeatureParameters: Starting with all vectors but wrong size.", {
   expect_equal(,)
 })
 
-testthat( "funcGenerateFeatureParameters: Starting with min number really high, min samples and sd = 1." {
+test_that( "funcGenerateFeatureParameters: Starting with min number really high, min samples and sd = 1.", {
   expect_equal(iNumberFeatures,length(lResult$mu))
   expect_equal(iNumberFeatures,length(lResult$exp))
   expect_equal(iNumberFeatures,length(lResult$sd))
   expect_equal(iNumberFeatures,length(lResult$PercentZero))
 })
 
-iNumberFeatures <- 1000
-iNumberSamples <- 1
-iMinNumberSamples <- 0
-iReadDepth <- 36500
-vdExp <- NA
-vdMu <- NA
-vdSD <- NA
-vdPercentZero <- NA
-dBetaSD <- 1
-dBetaZero <- 0
-dBetaGrandSD <- log( 3 ) / ( iReadDepth / iNumberFeatures )
-
-testthat( "funcGenerateFeatureParameters: Read depth 36500." {
-  expect_equal(36500,sum(lResult$exp))
-})
+# iNumberFeatures <- 1000
+# iNumberSamples <- 1
+# iMinNumberSamples <- 0
+# iReadDepth <- 36500
+# vdExp <- NA
+# vdMu <- NA
+# vdSD <- NA
+# vdPercentZero <- NA
+# dBetaSD <- 1
+# dBetaZero <- 0
+# dBetaGrandSD <- log( 3 ) / ( iReadDepth / iNumberFeatures )
+# 
+# testthat( "funcGenerateFeatureParameters: Read depth 36500." {
+#   expect_equal(36500,sum(lResult$exp))
+# })
 
 
 ### func_generate_metadata
@@ -280,6 +298,7 @@ context("Test func_generate_random_lognormal_with_multivariate_spikes")
 
 
 ### funcGetExp
+# PASS 10-22-2013
 context("Test funcGetExp")
 dSDOne = round(3,4)
 dMuOne = round(4,4)
@@ -298,6 +317,7 @@ test_that("Test that the expected SD is calculated correctly.",{
 
 
 ### funcGetMu
+# PASS 10-22-2013
 context("Test funcGetMu")
 dSDOne = round(3,4)
 dMuOne = round(4,4)
@@ -316,6 +336,7 @@ test_that("Test that the expected SD is calculated correctly.",{
 
 
 ### funcGetParamsForReadDepth
+# PASS 10-22-2013
 context("Test funcGetParamsForReadDepth")
 dMu <- 2
 dSD <- 3
@@ -324,7 +345,7 @@ iCount <- 1000000
 vdDistribution <- rlnorm( iCount, log( dMu ), log( dSD ) )
 lResult <- funcGetParamsForReadDepth( mean( vdDistribution ), log(dSD) / dExp )
 
-test_that( "Test that the parameters measured by funcGetParamsForExpectation are off less than 1 decimal, test 1." ,{
+test_that( "Test that the parameters measured by funcGetParamsForExpectation are off less than 1 decimal, test 1.", {
   expect_equal( round( log(dMu) ), round( lResult$dLogMu ) )
   expect_equal( round( log(dSD) ), round( lResult$dLogSD ) )
 })
@@ -336,25 +357,29 @@ iCount <- 1000000
 vdDistribution <- rlnorm( iCount, log( dMu ), log( dSD ) )
 lResult <- funcGetParamsForReadDepth( mean( vdDistribution ), log(dSD) / dExp )
 
-test_that( "Test that the parameters measured by funcGetParamsForExpectation are off less than 1 decimal, test 1." ,{
+test_that( "Test that the parameters measured by funcGetParamsForExpectation are off less than 1 decimal, test 1.", {
   expect_equal( round( log(dMu) ), round( lResult$dLogMu ) )
   expect_equal( round( log(dSD) ), round( lResult$dLogSD ) )
 })
 
 
 ### funcGetRowMetric
+# PASS 10-22-2013
 viOne <- 1:10
 viTwo <- c( 1, 5, 2, 8, 3, 4, 6, 9, 12, 2 )
 viThree <- c( 1, 24, 32, 5, 21, 2, 4, 6, 8, 67 )
 vdAnswer3 <- c( 5.5, 5.2, 17 )
-test_that( "Test that the mean is calculated correctly for vectors or matrices." ,{
+test_that( "Test that the mean is calculated correctly for vectors or matrices.", {
   expect_equal( funcGetRowMetric( viOne, mean ), 5.5 )
   expect_equal( funcGetRowMetric( matrix( viOne, ncol = length( viOne ), byrow = TRUE ), mean ), 5.5 )
   expect_equal( funcGetRowMetric( matrix( c( viOne, viTwo, viThree ), ncol = length( viOne ), byrow = TRUE ), mean), vdAnswer3 )
+  expect_equal( funcGetRowMetric( viOne, sum ), 55 )
+  expect_equal( funcGetRowMetric( matrix( viOne, ncol = length( viOne ), byrow = TRUE ), sum ), 55 )
 })
 
 
 ### Test funcGetSD
+# PASS 10-22-2013
 context("Test funcGetSD")
 viOne = 1:10
 viTwo = c(1,5,2,8,3,4,6,9,12,2)
@@ -370,6 +395,7 @@ test_that("Test that the SD is calculated correctly for vectors or matrices.",{
 
 
 ### funcIsFactorMetadataValid
+# PASS 10-22-2013
 context("Test funcIsFactorMetadataValid")
 vxMetadataOne = c(1,2,2,1,1,1,2,2,1,2,1,2)
 vxMetadataTwo = c(1,2,3,1,1,1,3,3,2,2,3,2,1,3)
@@ -381,66 +407,31 @@ test_that("Test that minimal levels of data are detected correctly, discontinuou
 })
 
 
-#!#
+# Could test more
 ### funcMakeFeature
+# PASS 10-22-2013
 context("Test funcMakeFeature for min counts")
 # Test for minimum count in a sample
 dMuOne = 1
 dSDOne = 1
 dPercentZeroOne = 0.0
-iNumberSamplesOne = 1000
-iMinNumberCountsOne = 1000
-iMinNumberSamplesOne = iNumberSamplesOne
+iNumberSamplesOne = 100
+iMinNumberCountsOne = 10
+iMinNumberSamplesOne = 10
 dTotalReadDepth = 1
 
-iMinNumberCountsTwo = 50
+iMinNumberCountsTwo = 100
 iMinNumberCountsThree = 0
 
 test_that("Test that the expected number of samples are given the minimum value.",{
-  expect_equal(length(which(funcMakeFeature(dMuOne,dSDOne,dPercentZeroOne,iNumberSamplesOne,iMinNumberCountsOne,iMinNumberSamplesOne, dTotalReadDepth)$Feature==iMinNumberCountsOne)),iMinNumberSamplesOne)
-  expect_equal(length(which(funcMakeFeature(dMuOne,dSDOne,dPercentZeroOne,iNumberSamplesOne,iMinNumberCountsTwo,iMinNumberSamplesOne, dTotalReadDepth)$Feature==iMinNumberCountsTwo)),iMinNumberSamplesOne)
-  expect_equal(length(which(funcMakeFeature(dMuOne,dSDOne,dPercentZeroOne,iNumberSamplesOne,iMinNumberCountsThree,iMinNumberSamplesOne, dTotalReadDepth)$Feature==iMinNumberCountsThree)),0)
-})
-
-context("Test funcMakeFeature for parameters outside of min number counts")
-# Test for minimum count in a sample
-dMuOne = 10
-dSDOne = 2
-dPercentZeroOne = 0.4
-iNumberSamplesOne = 1000
-iMinNumberCounts = 0
-iMinNumberSamples = 0
-
-dMuTwo = 10
-dSDTwo = 2
-dPercentZeroTwo = 0.0
-iNumberSamplesTwo = 1000
-
-dTotalReadDepth = 1
-
-vdFeatureOne = funcMakeFeature(dMuOne,dSDOne,dPercentZeroOne,iNumberSamplesOne,iMinNumberCounts,iMinNumberSamples)$Feature
-viNotZeroOne = which(vdFeatureOne!=0)
-vdFeatureTwo = funcMakeFeature(dMuTwo,dSDTwo,dPercentZeroTwo,iNumberSamplesTwo,iMinNumberCounts,iMinNumberSamples)$Feature
-viNotZeroTwo = which(vdFeatureTwo!=0)
-
-dRealMuOne = mean(log(vdFeatureOne[viNotZeroOne]))
-dRealMuTwo = mean(log(vdFeatureTwo[viNotZeroTwo]))
-dRealSDOne = sd(log(vdFeatureOne[viNotZeroOne]))
-dRealSDTwo = sd(log(vdFeatureTwo[viNotZeroTwo]))
-dRealPercentZeroOne = length(which(vdFeatureOne==0))/length(vdFeatureOne)
-dRealPercentZeroTwo = length(which(vdFeatureTwo==0))/length(vdFeatureTwo)
-
-test_that("Test that the expected number of samples are given the minimum value.",{
-  expect_equal(round(dRealMuOne),round(log(dMuOne)))
-  expect_equal(round(dRealMuTwo),round(log(dMuTwo)))
-  expect_equal(round(dRealSDOne),round(log(dSDOne)))
-  expect_equal(round(dRealSDTwo),round(log(dSDTwo)))
-  expect_equal(round(dRealPercentZeroOne),round(dPercentZeroOne))
-  expect_equal(round(dRealPercentZeroTwo),round(dPercentZeroTwo))
+  expect_equal(length(which(funcMakeFeature(dMuOne,dSDOne,dPercentZeroOne,iNumberSamplesOne,iMinNumberCountsOne,iMinNumberSamplesOne, dTotalReadDepth)$Feature>=iMinNumberCountsOne)),iMinNumberSamplesOne)
+  expect_equal(length(which(funcMakeFeature(dMuOne,dSDOne,dPercentZeroOne,iNumberSamplesOne,iMinNumberCountsTwo,iMinNumberSamplesOne, dTotalReadDepth)$Feature>=iMinNumberCountsTwo)),iMinNumberSamplesOne)
+  expect_equal(length(which(funcMakeFeature(dMuOne,dSDOne,dPercentZeroOne,iNumberSamplesOne,iMinNumberCountsThree,iMinNumberSamplesOne, dTotalReadDepth)$Feature>=iMinNumberCountsThree)), iNumberSamplesOne)
 })
 
 
 ### funcNormalizeMicrobiome
+# PASS 10-22-2013
 context("Test funcNormalizeMicrobiome")
 mtrxCountsOne = matrix(c(1,1,1,2,2,2,3,3,3,4,4,4), byrow=TRUE, nrow=4, ncol=3)
 mtrxRelAbOne = matrix(c(0.1,0.1,0.1,0.2,0.2,0.2,0.3,0.3,0.3,0.4,0.4,0.4), byrow=TRUE, nrow=4, ncol=3)
@@ -459,6 +450,7 @@ test_that("Test that normalization occurs by column and when zeros are present."
 
 
 ### funcNumericIsInt
+# PASS 10-22-2013
 context("Test funcNumericIsInt")
 test_that("Test that integers are correctly identified.",{
   expect_equal(funcNumericIsInt(1), TRUE)
@@ -472,8 +464,8 @@ test_that("Test that integers are correctly identified.",{
 ### Plotting function
 
 
-#!#
 ### funcPrepareMetadata
+# PASS 10-22-2013
 context("Test funcPrepareMetadata with dummying")
 vstrMetadataOne = c(1,2,2,1,1,1,2,2,1,2,1,2)
 vstrMetadataTwo = c(1,2,3,1,1,3,2,3,1,2,1,2)
@@ -557,6 +549,7 @@ test_that("Test that factor data of different varying levels are not dummied and
 
 
 ### funcQCSpikin
+# PASS 10-22-2013
 context("Test funcQCSpikin")
 viMetadata1 = c(2,1,2,2,1,1,2,2,1,1)
 viMetadata2 = c(2,1,1,1,2,2,1,1,1,1)
@@ -671,100 +664,92 @@ test_that("Test that dummied data are correctly checked without dummying for mat
 })
 
 
+### funcRoundMatrix
+# PASS 10-22-2013
+context("Test funcRoundMatrix for normal matrix and sparse matrix")
+mtrxOne = matrix(c(1.1,2.2,3.3,4.4,5.5,0.6,7.7,8.8,9.9,10.10,11.11,0.12,13.13,14.14,15.15,16.16,0.17,18.18,19.19,20.20,21.21),nrow=7,ncol=3)
+mtrxTwo = matrix(c(1.1,0,3.3,4.4,0,0.6,7.7,8.8,9.9,0,11.11,0.12,13.13,14.14,0,16.16,0.17,18.18,19.19,20.20,21.21),nrow=7,ncol=3)
+# Not treated like zero inflated
+mtrxOneAnswer = matrix(c(1,2,3,4,6,1,8,9,10,10,11,0,13,14,15,16,0,18,19,20,21),nrow=7,ncol=3)
+mtrxTwoAnswer = matrix(c(1,0,3,4,0,1,8,9,10,0,11,0,13,14,0,16,0,18,19,20,21),nrow=7,ncol=3)
+# Treated like zero inflated
+mtrxOneAnswer2 = matrix(c(1,2,3,4,6,1,8,9,10,10,11,1,13,14,15,16,1,18,19,20,21),nrow=7,ncol=3)
+mtrxTwoAnswer2 = matrix(c(1,0,3,4,0,1,8,9,10,0,11,1,13,14,0,16,1,18,19,20,21),nrow=7,ncol=3)
+
+test_that("Test that rounding happens as normal expect no 0s are added, 1 is the lowest number rounding can occur to.",
+{
+  expect_equal( mtrxOneAnswer, funcRoundMatrix( mtrxOne, FALSE ) )
+  expect_equal( mtrxOneAnswer2, funcRoundMatrix( mtrxOne, TRUE ) )
+  expect_equal( mtrxTwoAnswer, funcRoundMatrix( mtrxTwo, FALSE ) )
+  expect_equal( mtrxTwoAnswer2, funcRoundMatrix( mtrxTwo, TRUE ) )
+})
+
+
+### funcSample
+# PASS 10-22-2013
+context( "Test to make sure behavior of vectorize sample is consistent between 1 element and multiple element vectors." )
+vOne = 1:10
+iLengthOne = length(vOne)
+
+test_that( "Test that vector of multiple samples sample correctly.",
+{
+  expect_equal( vOne, sort(funcSample(vOne, iLengthOne, replace = FALSE ) ) )
+  expect_equal( iLengthOne/2, length( sort( funcSample( vOne, iLengthOne/2, replace = TRUE ) ) ) )
+  expect_equal( iLengthOne*2, length( sort( funcSample( vOne, iLengthOne*2, replace = TRUE ) ) ) )
+  expect_true( unique( funcSample( vOne, iLengthOne*2, replace = TRUE ) %in% vOne ) )
+})
+
+test_that( "Test that 1 element is sampled correctly.",
+{
+  expect_equal( 1, funcSample( c( 1 ), 1, replace = FALSE ) )
+  expect_equal( rep( 1, 3 ), funcSample( c( 1 ), 3, replace = TRUE ) )
+  expect_equal( 11, funcSample( c( 11 ), 1, replace = FALSE ) )
+  expect_equal( rep( 11, 3 ), funcSample( c( 11 ), 3, replace = TRUE ) )
+})
+
 ### funcShuffleMatrix
-#!#
+# PASS 10-22-2013
+context( "Test funcShuffleMatrix for even shuffling and read depth improvement" )
+mtrxOne = matrix(c(1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0),nrow=7,ncol=3)
+test_that("Test that the matrices shuffle evenly and leave no samples of sum 0.",
+{
+  expect_true( unique( colSums( funcShuffleMatrix( mtrxOne, 1 ) ) %in% c( 5, 1 ) ) )
+  expect_true( unique( colSums( funcShuffleMatrix( mtrxOne, 2 ) ) %in% c( 2, 3 ) ) )
+  expect_true( unique( colSums( funcShuffleMatrix( mtrxOne, 7 ) ) %in% c( 7, 0 ) ) )
+})
 
 
 ### funcSpikeNewBug
+# PASS 10-22-2013
+# funcSpikeNewBug( vdContinuousMetadata1, vdNotSparseBug1, iMultiplier1 )
 context("Test funcSpikeNewBug")
-vdContinuousMetadata1 = c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0)
-vdContinuousMetadata2 = c(1.0,0.9,0.8,0.7,0.6,0.5,0.4,0.3,0.2,0.1)
-vdContinuousMetadata3 = c(0.3,0.5,0.7,0.2,0.4,0.6,0.8,0.9,0.2,0.4)
-viBinaryMetadata1 = c(1,1,1,1,1,2,2,2,2,2)
-viBinaryMetadata2 = c(2,2,2,2,2,1,1,1,1,1)
-viBinaryMetadata3 = c(2,2,1,1,2,2,1,1,2,1)
-viFactorMetadata1 = c(1,1,1,2,2,2,3,3,3,4)
-viFactorMetadata2 = c(1,2,3,4,1,2,3,4,1,4)
-mtrxdMultContinuousMetadata1 = matrix(c(vdContinuousMetadata1, vdContinuousMetadata3),ncol=length(vdContinuousMetadata1), byrow=TRUE)
-mtrxdMultContinuousMetadata2 = matrix(c(vdContinuousMetadata1, vdContinuousMetadata2),ncol=length(vdContinuousMetadata1), byrow=TRUE)
-mtrxMultBinaryMetadata1 = matrix(c(viBinaryMetadata1, viBinaryMetadata3),ncol=length(viBinaryMetadata1), byrow=TRUE)
-mtrxMultBinaryMetadata2 = matrix(c(viBinaryMetadata1, viBinaryMetadata2),ncol=length(viBinaryMetadata1), byrow=TRUE)
-mtrxFactorMetadata1 = matrix(c(viFactorMetadata1, viFactorMetadata2),ncol=length(viFactorMetadata1), byrow=TRUE)
-vdSparseBug1 = c(4,0,0,4,0,4,0,0,0,4)
-vdSparseBug2 = c(3,0,0,4,0,8,0,0,0,4)
-vdNotSparseBug1 = c(4,4,4,4,4,4,4,4,4,4)
-vdNotSparseBug2 = c(3,6,5,4,7,8,9,2,3,4)
-iMultiplier1 = 1
-iMultiplier2 = 2
-iMultiplier3 = 3
 
-#test_that("funcSpikeNewBug: Test that relationships are made with simple inputs, not varying bug.",{
-#  expect_equal(round(funcSpikeNewBug(vdContinuousMetadata1, vdNotSparseBug1, iMultiplier1),c_iRoundingPercision), round(c(2.513699,2.843988,3.174277,3.504566,3.834855,4.165145,4.495434,4.825723,5.156012,5.486301),c_iRoundingPercision))
-#  expect_equal(round(funcSpikeNewBug(vdContinuousMetadata2, vdNotSparseBug1, iMultiplier1),c_iRoundingPercision), round(c(5.486301,5.156012,4.825723,4.495434,4.165145,3.834855,3.504566,3.174277,2.843988,2.513699),c_iRoundingPercision))
-#  expect_equal(round(funcSpikeNewBug(viBinaryMetadata1, vdNotSparseBug1, iMultiplier1),c_iRoundingPercision), round(1,c_iRoundingPercision))
-#  expect_equal(round(funcSpikeNewBug(viBinaryMetadata2, vdNotSparseBug1, iMultiplier1),c_iRoundingPercision), round(1,c_iRoundingPercision))
-#  expect_equal(round(funcSpikeNewBug(viBinaryMetadata3, vdNotSparseBug1, iMultiplier1),c_iRoundingPercision), round(1,c_iRoundingPercision))
-#  expect_equal(round(funcSpikeNewBug(viFactorMetadata1, vdNotSparseBug1, iMultiplier1),c_iRoundingPercision), round(1,c_iRoundingPercision))
-#  expect_equal(round(funcSpikeNewBug(viFactorMetadata2, vdNotSparseBug1, iMultiplier1),c_iRoundingPercision), round(1,c_iRoundingPercision))
-#})
-
-#test_that("funcSpikeNewBug: Test that relationships are made with simple inputs, varying bug.",{
-#  expect_equal(round(funcSpikeNewBug(vdContinuousMetadata1, vdNotSparseBug2, iMultiplier1),c_iRoundingPercision), round(c(1),c_iRoundingPercision))
-#  expect_equal(round(funcSpikeNewBug(vdContinuousMetadata2, vdNotSparseBug2, iMultiplier1),c_iRoundingPercision), round(c(1),c_iRoundingPercision))
-#  expect_equal(round(funcSpikeNewBug(viBinaryMetadata1, vdNotSparseBug2, iMultiplier1),c_iRoundingPercision), round(1,c_iRoundingPercision))
-#  expect_equal(round(funcSpikeNewBug(viBinaryMetadata2, vdNotSparseBug2, iMultiplier1),c_iRoundingPercision), round(1,c_iRoundingPercision))
-#  expect_equal(round(funcSpikeNewBug(viBinaryMetadata3, vdNotSparseBug2, iMultiplier1),c_iRoundingPercision), round(1,c_iRoundingPercision))
-#  expect_equal(round(funcSpikeNewBug(viFactorMetadata1, vdNotSparseBug2, iMultiplier1),c_iRoundingPercision), round(1,c_iRoundingPercision))
-#  expect_equal(round(funcSpikeNewBug(viFactorMetadata2, vdNotSparseBug2, iMultiplier1),c_iRoundingPercision), round(1,c_iRoundingPercision))
-#})
-
-test_that("funcSpikeNewBug: Test that the multiplier increases the relationship.",{
-#  expect_equal(round(funcSpikeNewBug(vdContinuousMetadata1, vdNotSparseBug1, iMultiplier2),c_iRoundingPercision), round(c(1.027398,1.687976,2.348554,3.009133,3.669711,4.330289,4.990867,5.651446,6.312024,6.972602),c_iRoundingPercision))
-#  expect_equal(round(funcSpikeNewBug(vdContinuousMetadata1, vdNotSparseBug1, iMultiplier3),c_iRoundingPercision), round(c(-0.4589032,0.5319641,1.5228315,2.5136989,3.5045663,4.4954337,5.4863011,6.4771685,7.4680359,8.4589032),c_iRoundingPercision))
-#  expect_equal(round(funcSpikeNewBug(vdContinuousMetadata1, vdNotSparseBug2, iMultiplier2),c_iRoundingPercision), round(c(1),c_iRoundingPercision))
-#  expect_equal(round(funcSpikeNewBug(vdContinuousMetadata1, vdNotSparseBug2, iMultiplier3),c_iRoundingPercision), round(c(1),c_iRoundingPercision))
-#  expect_equal(round(funcSpikeNewBug(vdContinuousMetadata1, vdSparseBug1, iMultiplier2),c_iRoundingPercision), round(1,c_iRoundingPercision))
-#  expect_equal(round(funcSpikeNewBug(vdContinuousMetadata1, vdSparseBug1, iMultiplier3),c_iRoundingPercision), round(1,c_iRoundingPercision))
+test_that("funcSpikeNewBug: Test that relationships are made with simple inputs.",{
+  expect_equal( 1:10, funcSpikeNewBug( 1:10, 1:10, 1 ))
+  expect_equal( 1:10, funcSpikeNewBug( 1:10, 1:10, 5 ))
+  expect_equal( rep(1,8), funcSpikeNewBug( rep(1,8), rep(1,8), 1 ))
+  expect_equal( rep(1,8), funcSpikeNewBug( rep(1,8), rep(1,8), 5 ))
+  expect_equal( rep(5.5,10), funcSpikeNewBug( 1:10, 10:1, 1 ))
+  expect_equal( c(9.1, 8.3, 7.5, 6.7, 5.9, 5.1, 4.3, 3.5, 2.7, 1.9), funcSpikeNewBug( 10:1, 1:10, 9 ))
+  expect_equal( 1:10, funcSpikeNewBug( matrix(c(1:10,1:10), byrow=TRUE,nrow=2,ncol=10), 1:10, 1 ))
+  expect_equal( 1:10, funcSpikeNewBug( matrix(c(1:10,1:10), byrow=TRUE,nrow=2,ncol=10), 1:10, 5 ))
+  expect_equal( round(c(2.285714, 2.428571, 2.571429, 2.714286),2), round(funcSpikeNewBug( matrix(c(1:4,4:1), byrow=TRUE,nrow=2,ncol=4), 1:4, 3 ),2))
+  expect_equal( which(c(1,0,3,4,5,6,0,8,9,0)==0), which(funcSpikeNewBug( 1:10, c(1,0,3,4,5,6,0,8,9,0),1)==0))
+  expect_equal( which(c(1,0,1,1,0,1,0,1,0,0)==0), which(funcSpikeNewBug( matrix(c(1:10,1:10), byrow=TRUE,nrow=2,ncol=10), c(10,0,20,10,0,10,0,10,0,0), 5 )==0))
 })
-
-#test_that("funcSpikeNewBug: Test that relationships are made with simple inputs and a sparse bug.",{
-#  expect_equal(round(funcSpikeNewBug(vdContinuousMetadata1, vdSparseBug1, iMultiplier1),c_iRoundingPercision), round(1,c_iRoundingPercision))
-#  expect_equal(round(funcSpikeNewBug(vdContinuousMetadata2, vdSparseBug1, iMultiplier1),c_iRoundingPercision), round(1,c_iRoundingPercision))
-#  expect_equal(round(funcSpikeNewBug(viBinaryMetadata1, vdSparseBug1, iMultiplier1),c_iRoundingPercision), round(1,c_iRoundingPercision))
-#  expect_equal(round(funcSpikeNewBug(viBinaryMetadata2, vdSparseBug1, iMultiplier1),c_iRoundingPercision), round(1,c_iRoundingPercision))
-#  expect_equal(round(funcSpikeNewBug(viBinaryMetadata3, vdSparseBug1, iMultiplier1),c_iRoundingPercision), round(1,c_iRoundingPercision))
-#  expect_equal(round(funcSpikeNewBug(viFactorMetadata1, vdSparseBug1, iMultiplier1),c_iRoundingPercision), round(1,c_iRoundingPercision))
-#  expect_equal(round(funcSpikeNewBug(viFactorMetadata2, vdSparseBug1, iMultiplier1),c_iRoundingPercision), round(1,c_iRoundingPercision))
-#})
-
-#test_that("funcSpikeNewBug: Test that relationships are made with matrix inputs.",{
-#  expect_equal(round(funcSpikeNewBug(mtrxdMultContinuousMetadata1, vdNotSparseBug1, iMultiplier1),c_iRoundingPercision), round(1,c_iRoundingPercision))
-#  expect_equal(round(funcSpikeNewBug(mtrxMultBinaryMetadata1, vdNotSparseBug1, iMultiplier1),c_iRoundingPercision), round(1,c_iRoundingPercision))
-#  expect_equal(round(funcSpikeNewBug(mtrxFactorMetadata1, vdNotSparseBug1, iMultiplier1),c_iRoundingPercision), round(1,c_iRoundingPercision))
-#  expect_equal(round(funcSpikeNewBug(mtrxdMultContinuousMetadata1, vdSparseBug1, iMultiplier1),c_iRoundingPercision), round(1,c_iRoundingPercision))
-#  expect_equal(round(funcSpikeNewBug(mtrxMultBinaryMetadata1, vdSparseBug1, iMultiplier1),c_iRoundingPercision), round(1,c_iRoundingPercision))
-#  expect_equal(round(funcSpikeNewBug(mtrxFactorMetadata1, vdSparseBug1, iMultiplier1),c_iRoundingPercision), round(1,c_iRoundingPercision))
-#})
-
-#test_that("funcSpikeNewBug: Test the effect of using metadata strongly indirectly associated.",{
-#  expect_equal(round(funcSpikeNewBug(mtrxdMultContinuousMetadata2, vdNotSparseBug1, iMultiplier1),c_iRoundingPercision), round(1,c_iRoundingPercision))
-#  expect_equal(round(funcSpikeNewBug(mtrxMultBinaryMetadata2, vdNotSparseBug1, iMultiplier1),c_iRoundingPercision), round(1,c_iRoundingPercision))
-#  expect_equal(round(funcSpikeNewBug(mtrxdMultContinuousMetadata2, vdNotSparseBug1, iMultiplier3), round(1,c_iRoundingPercision))
-#  expect_equal(round(funcSpikeNewBug(mtrxMultBinaryMetadata2, vdNotSparseBug1, iMultiplier3),c_iRoundingPercision), round(1,c_iRoundingPercision))
-#})
 
 
 ### funcTruncatedRLNorm
+# PASS 10-22-2013
 iCount <- 1000000
 dMu <- 2
 dSD <- 3
 dExp = funcGetExp( 2, 3 )
 iThreshold <- NA
 lResult <- funcTruncatedRLNorm( iCount, log( dMu ), log( dSD ), iThreshold )
-test_that( "Test that funcTruncatedRLNorm creates an expected distribution without truncation." ,{
-  expect_equal(round( dExp, 2), round( mean( lResult$Feature ), 2) )
-  expect_equal( iCount, length( lResult$Feature ) )
-  expect_equal( 0, length( lResult$LeftOver ) )
+test_that( "Test that funcTruncatedRLNorm creates an expected distribution without truncation.", {
+  expect_true( round( dExp ) - 1 < round( mean( lResult ) ) && round( dExp ) + 1 > round( mean( lResult ) ) )
+  expect_equal( iCount, length( lResult ) )
 })
 
 iCount <- 1000000
@@ -773,116 +758,78 @@ dSD <- 7
 dExp = funcGetExp( 5, 7 )
 iThreshold <- NA
 lResult <- funcTruncatedRLNorm( iCount, log( dMu ), log( dSD ), iThreshold )
-test_that( "Test that funcTruncatedRLNorm creates an expected distribution without truncation." ,{
-  expect_equal(round( dExp ), round( mean( lResult$Feature ) ) )
-  expect_equal( iCount, length( lResult$Feature ) )
-  expect_equal( 0, length( lResult$LeftOver ) )
+test_that( "Test that funcTruncatedRLNorm creates an expected distribution without truncation.", {
+  expect_true( round( dExp ) - 1 < round( mean( lResult ) ) && round( dExp ) + 1 > round( mean( lResult ) ) )
+  expect_equal( iCount, length( lResult ) )
 })
 
-iCount <- 1000000
+iCount <- 100
 dMu <- 2
 dSD <- 3
 dExp = funcGetExp( 2, 3 )
 iThreshold <- 3
 lResult <- funcTruncatedRLNorm( iCount, log( dMu ), log( dSD ), iThreshold )
-dSDThreeCount <- sum( lResult$LeftOver )
-test_that( "Test that funcTruncatedRLNorm creates an expected distribution without truncation." ,{
-  expect_equal(round( dExp, 2), round( mean( lResult$Feature + lResult$Feature ), 2) )
-  expect_equal( iCount, length( lResult$Feature ) )
-  expect_equal( 0, length( lResult$LeftOver ) )
+test_that( "Test that funcTruncatedRLNorm creates an expected distribution without truncation.", {
+  expect_equal( 0, length( lResult[ lResult > iThreshold ] ) )
 })
 
-iCount <- 1000000
+iCount <- 1000
 dMu <- 2
 dSD <- 7
 dExp = funcGetExp( 2, 7 )
 iThreshold <- 3
 lResult <- funcTruncatedRLNorm( iCount, log( dMu ), log( dSD ), iThreshold )
 test_that( "Test that funcTruncatedRLNorm creates an expected distribution without truncation." ,{
-  expect_equal(round( dExp ), round( mean( lResult$Feature + lResult$LeftOver ) ) )
-  expect_true( dSDThreeCount < sum( lResult$LeftOver ) )
-  expect_equal( 0, length( which( lResult$Feature > iThreshold ) ) )
+  expect_equal( 0, length( lResult[ lResult > iThreshold ] ) )
 })
 
-### funcUpdateDistributionToSum
+
+### funcUpdateDistributionToExpectation
+# Pass 10-22-2013
 vdDist1 = rlnorm( 10, log( 2 ), log( 3 ) )
-dSum1 = sum( vdDist1 )
-dTest1 = sum( round( funcUpdateDistributionToSum( vdDist1, floor( dSum1 + 10 ) ) ) )
-dTest2 = sum( round( funcUpdateDistributionToSum( vdDist1, floor( dSum1 - 10 ) ) ) )
+dMean1 = round( mean( vdDist1 ) )
+dTest1 = round( mean( funcUpdateDistributionToExpectation( vdDist1, floor( dMean1 + 10 ) ) ) )
+# Tests that minimum expectation is 1
+dTest2 = round( mean( funcUpdateDistributionToExpectation( vdDist1, floor( dMean1 - 10 ) ) ) )
+vdDist2 = rlnorm( 100, log( 10 ), log( 3 ) )
+dMean2 = round( mean( vdDist2 ) )
+dTest3 = round( mean( funcUpdateDistributionToExpectation( vdDist2, floor( dMean2 + 10 ) ) ) )
+dTest4 = round( mean( funcUpdateDistributionToExpectation( vdDist2, floor( dMean2 - 10 ) ) ) )
+test_that( "Test that the funcUpdateDistributionToExpectation, updates distributions to the correct mean.", {
+  expect_true( ( dTest1 >= floor( dMean1 + 10 ) - 1 ) && ( dTest1 <= floor( dMean1 + 10 ) + 1 ) )
+  expect_true( dTest2 == 1 )
+  expect_true( ( dTest3 >= floor( dMean2 + 10 ) - 1 ) && ( dTest3 <= floor( dMean2 + 10 ) + 1 ) )
+  expect_true( ( dTest4 >= floor( dMean2 - 10 ) - 1 ) && ( dTest4 <= floor( dMean2 - 10 ) + 1 ) )
+})
+
+
+### funcUpdateDistributionToSum
+# PASS 10-22-2013
+vdDist1 = rlnorm( 10, log( 2 ), log( 3 ) )
+dSum1 = round( sum( vdDist1 ) )
+dTest1 = round( sum( funcUpdateDistributionToSum( vdDist1, floor( dSum1 + 10 ) ) ) )
+dTest2 = round( sum( funcUpdateDistributionToSum( vdDist1, floor( dSum1 - 10 ) ) ) )
 vdDist2 = rlnorm( 100, log( 2 ), log( 3 ) )
-dSum2 = sum( vdDist2 )
-dTest3 = sum( round( funcUpdateDistributionToSum( vdDist2, floor( dSum2 + 10 ) ) ) )
-dTest4 = sum( round( funcUpdateDistributionToSum( vdDist2, floor( dSum2 - 10 ) ) ) )
-test_that( "Test that the funcUpdateDistributionToSum, updates distributions to the correct sum."{
-  expect_true( ( dTest1 > floor( dSum1 + 10 ) - 1 ) and ( dTest1 > floor( dSum1 + 10 ) + 1 ) )
-  expect_true( ( dTest2 > floor( dSum1 - 10 ) - 1 ) and ( dTest2 > floor( dSum1 - 10 ) + 1 ) )
-  expect_true( ( dTest3 > floor( dSum1 + 10 ) - 1 ) and ( dTest3 > floor( dSum1 + 10 ) + 1 ) )
-  expect_true( ( dTest4 > floor( dSum1 - 10 ) - 1 ) and ( dTest4 > floor( dSum1 - 10 ) + 1 ) )
-}),
+dSum2 = round( sum( vdDist2 ) )
+dTest3 = round( sum( funcUpdateDistributionToSum( vdDist2, floor( dSum2 + 10 ) ) ) )
+dTest4 = round( sum( funcUpdateDistributionToSum( vdDist2, floor( dSum2 - 10 ) ) ) )
+test_that( "Test that the funcUpdateDistributionToSum, updates distributions to the correct sum.", {
+  expect_true( ( dTest1 >= floor( dSum1 + 10 ) - 1 ) && ( dTest1 <= floor( dSum1 + 10 ) + 1 ) )
+  expect_true( ( dTest2 >= floor( dSum1 - 10 ) - 1 ) && ( dTest2 <= floor( dSum1 - 10 ) + 1 ) )
+  expect_true( ( dTest3 >= floor( dSum2 + 10 ) - 1 ) && ( dTest3 <= floor( dSum2 + 10 ) + 1 ) )
+  expect_true( ( dTest4 >= floor( dSum2 - 10 ) - 1 ) && ( dTest4 <= floor( dSum2 - 10 ) + 1 ) )
+})
 
-### funcZeroCorrectMatrix
-mtrxShuffle = matrix( 1:10, ncol = 10, nrow = 10 )
-mtrxResult = funcZeroCorrectMatrix( mtrxShuffle, funcGetRowMetric( mtrxShuffle, mean ), c() )
-test_that( "funcZeroCorrectMatrix: Test that a matrx with no zeros is not shuffled." ,{
-  expect_equal( mtrxResult, mtrxShuffle )
-}
-
-mtrxShuffle = matrix( 0, ncol = 10, nrow = 10 )
-mtrxResult = funcZeroCorrectMatrix( mtrxShuffle, funcGetRowMetric( mtrxShuffle, mean ), c() )
-test_that( "funcZeroCorrectMatrix: That a fully zero matrix is returned zero if no left over is available." ,{
-  expect_equal( mtrxResult, mtrxShuffle )
-}
-
-viNumbers = 1:100
-viNumbers[ c( 1, 12, 23, 34, 45, 56, 67, 78, 89, 100 ) ] = 0
-mtrxShuffle = matrix( viNumbers, ncol = 10, nrow = 10 )
-mtrxResult = funcZeroCorrectMatrix( mtrxShuffle, funcGetRowMetric( mtrxShuffle, mean ), c() )
-test_that( "funcZeroCorrectMatrix: Zeros in samples that have other values are not shuffled." ,{
-  expect_equal( mtrxResult, mtrxShuffle )
-}
-
-viNumbers = 1:100
-viNumbers[ c( 1:10, 21:30, 41:50, 61:70, 81:90 ) ] = 0
-mtrxShuffle = matrix( viNumbers, ncol = 10, nrow = 10 )
-mtrxResult = funcZeroCorrectMatrix( mtrxShuffle, funcGetRowMetric( mtrxShuffle, mean ), c() )
-test_that( "funcZeroCorrectMatrix: Zeros samples are shuffled out if there are samples with which to shuffle. Half of the samples are nonzero." ,{
-  expect_equal( 0, length( which( colSums( mtrxResult$Data ) == 0 ) ) )
-}
-
-viNumbers = 1:100
-viNumbers[ c( 1:90 ) ] = 0
-mtrxShuffle = matrix( viNumbers, ncol = 10, nrow = 10 )
-mtrxResult = funcZeroCorrectMatrix( mtrxShuffle, funcGetRowMetric( mtrxShuffle, mean ), c() )
-test_that( "funcZeroCorrectMatrix: Zeros samples are shuffled out if there are samples with which to shuffle. One none zero sample." ,{
-  expect_equal( 0, length( which( colSums( mtrxResult$Data ) == 0 ) ) )
-}
-
-## Makes negative numbers, not good
-viNumbers = 1:100
-viNumbers[ c( 1:95 ) ] = 0
-mtrxShuffle = matrix( viNumbers, ncol = 10, nrow = 10 )
-mtrxResult = funcZeroCorrectMatrix( mtrxShuffle, funcGetRowMetric( mtrxShuffle, mean ), c() )
-test_that( "funcZeroCorrectMatrix: Zeros samples are shuffled out if there are samples with which to shuffle. One none zero sample, not enough signal to shuffle and no left over." ,{
-  expect_equal( 0, length( which( colSums( mtrxResult$Data ) == 0 ) ) )
-}
-
-### Check Left Over use.
-viNumbers = 1:100
-viNumbers[ c( 1:95 ) ] = 0
-mtrxShuffle = matrix( viNumbers, ncol = 10, nrow = 10 )
-mtrxResult = funcZeroCorrectMatrix( mtrxShuffle, funcGetRowMetric( mtrxShuffle, mean ), rep( 100, 10 ) )
-test_that( "funcZeroCorrectMatrix: Zeros samples are shuffled out if there are samples with which to shuffle. One none zero sample, not enough signal to shuffle and with left over." ,{
-  expect_equal( 0, length( which( colSums( mtrxResult$Data ) == 0 ) ) )
-}
 
 ### func_zero_inflate
+# PASS 10-22-2013
 context("Test func_zero_inflate checking that the made distributions are equal to the parameters.")
 # No SD
 dMeanOne = 5
 dPercentZeroOne = .50
 dSDOne = 1
 iNumberSamples = 100000
-vdTestOne = func_zero_inflate(dMeanOne,dPercentZeroOne,iNumberSamples,dSDOne)$Feature
+vdTestOne = func_zero_inflate(dMeanOne,dPercentZeroOne,iNumberSamples,dSDOne)
 viNotZeroOne = which(vdTestOne!=0)
 dRealMeanOne = mean(log(vdTestOne[viNotZeroOne]))
 dRealSDOne = sd(log(vdTestOne[viNotZeroOne]))
@@ -893,7 +840,7 @@ dMeanTwo = 10
 dPercentZeroTwo = .3
 dSDTwo = 2
 iNumberSamples = 100000
-vdTestTwo = func_zero_inflate(dMeanTwo,dPercentZeroTwo,iNumberSamples,dSDTwo)$Feature
+vdTestTwo = func_zero_inflate(dMeanTwo,dPercentZeroTwo,iNumberSamples,dSDTwo)
 viNotZeroTwo = which(vdTestTwo!=0)
 dRealMeanTwo = mean(log(vdTestTwo[viNotZeroTwo]))
 dRealSDTwo = sd(log(vdTestTwo[viNotZeroTwo]))
@@ -904,7 +851,7 @@ dMeanThree = 1
 dPercentZeroThree = .0
 dSDThree = 5
 iNumberSamples = 100000
-vdTestThree = func_zero_inflate(dMeanThree,dPercentZeroThree,iNumberSamples,dSDThree)$Feature
+vdTestThree = func_zero_inflate(dMeanThree,dPercentZeroThree,iNumberSamples,dSDThree)
 
 test_that("Test that func_zero_inflate creates a distribution close to the given parameters.",{
   expect_equal(round(dRealMeanOne),round(dMeanOne))
