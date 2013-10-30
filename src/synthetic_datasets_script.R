@@ -738,7 +738,10 @@ fVerbose = FALSE
 
     # Remember this is a vector of expectation not of log mu parameters.
     print( paste( "LogMu", lsParams$dLogMu, "LogSD", lsParams$dLogSD, "Threshold",(c_iTimesSDIsOutlier*log(lsParams$dLogSD))+log(lsParams$dLogMu)))
-    vdExp = funcTruncatedRLNorm(iNumberMeasurements=int_number_features, dLogMean=lsParams$dLogMu, dLogSD=lsParams$dLogSD, iThreshold=( c_iTimesSDIsOutlier*exp( lsParams$dLogSD ) ) + exp( lsParams$dLogMu ) )
+    vdExp = funcTruncatedRLNorm(iNumberMeasurements = int_number_features, 
+				dLogMean            = lsParams$dLogMu, 
+				dLogSD              = lsParams$dLogSD, 
+				iThreshold          = ( c_iTimesSDIsOutlier*exp( lsParams$dLogSD ) ) + exp( lsParams$dLogMu ) )
 
     ### Update the distribution to the sum (read depth) requested.
     ### Depending on how many features are requested this is more or less needed
@@ -1001,9 +1004,21 @@ fVerbose = FALSE
 
   # Preallocating for speed
   mat_bugs = matrix(data=NA,nrow=int_number_features,ncol=int_number_samples)
+  mat_bugs_basis = matrix(data=NA,nrow=int_number_features,ncol=int_number_samples)
 
   # Get the initial mu vector for generating features.
-  lsInitialDistribution = funcGenerateFeatureParameters(int_number_features=int_number_features, int_number_samples=int_number_samples, iMinNumberSamples=iMinNumberSamples, iReadDepth=iReadDepth, vdExp=vdExp, vdMu=vdMu, vdSD=vdSD, vdPercentZero=vdPercentZero, lSDRel = lSDRel, lPercentZeroRel = lPercentZeroRel, dBetaGrandSD = dBetaGrandSD, fVerbose=fVerbose)
+  lsInitialDistribution = funcGenerateFeatureParameters(int_number_features = int_number_features, 
+  			  				int_number_samples  = int_number_samples, 
+							iMinNumberSamples   = iMinNumberSamples, 
+							iReadDepth          = iReadDepth, 
+							vdExp               = vdExp, 
+							vdMu                = vdMu, 
+							vdSD                = vdSD, 
+							vdPercentZero       = vdPercentZero, 
+							lSDRel              = lSDRel, 
+							lPercentZeroRel     = lPercentZeroRel, 
+							dBetaGrandSD        = dBetaGrandSD, 
+							fVerbose            = fVerbose)
 
   pdf("Check2.pdf")
   # Update the Mu, SD and Percent zero bugs and report on distributions
@@ -1033,10 +1048,19 @@ fVerbose = FALSE
   for(iReset in 1:int_number_features)
   {
     # Create new feature
-    lFeatureDetails = funcMakeFeature(dMu=vdMu[iReset], dSD=vdSD[iReset], dPercentZero=vdPercentZero[iReset], iNumberSamples=int_number_samples, iMinNumberCounts=iMinNumberCounts, iMinNumberSamples=iMinNumberSamples, dTruncateThreshold=(c_iTimesSDIsOutlier*vdSD[iReset])+vdMu[iReset], fZeroInflate=fZeroInflate, fVerbose=fVerbose )
+    lFeatureDetails = funcMakeFeature(dMu                = vdMu[iReset], 
+    		      		      dSD                = vdSD[iReset], 
+				      dPercentZero       = vdPercentZero[iReset], 
+				      iNumberSamples     = int_number_samples, 
+				      iMinNumberCounts   = iMinNumberCounts, 
+				      iMinNumberSamples  = iMinNumberSamples, 
+				      dTruncateThreshold = (c_iTimesSDIsOutlier*vdSD[iReset])+vdMu[iReset], 
+				      fZeroInflate       = fZeroInflate, 
+				      fVerbose           = fVerbose )
 
     # Update the matrix with the new feature
     mat_bugs[iReset,] = lFeatureDetails$Feature
+    mat_bugs_basis[iReset,] = lFeatureDetails$Feature_base
   }
 
   #!# Remove
@@ -1094,7 +1118,7 @@ fVerbose = FALSE
   }
   dev.off()
 
-  # Truth table for log normal data
+  # Truth table for relative abundance log normal data
   mtrxParameters = matrix(data=NA, nrow=6, ncol=1)
   mtrxParameters[1,1] = paste(c_strSyntheticMicrobiome, c_strRandom, sep='')
   mtrxParameters[2,1] = paste(c_strNumberOfFeatures, int_number_features)
@@ -1103,8 +1127,16 @@ fVerbose = FALSE
   mtrxParameters[5,1] = paste(c_strNumberCounts, iMinNumberCounts)
   mtrxParameters[6,1] = paste(c_strNumberSamples, iMinNumberSamples)
 
+  # Truth table for basis data
+  mtrxBasisParameters = matrix(data=NA,nrow=5,ncol=1)
+  mtrxBasisParameters[1,1] = paste(c_strSyntheticMicrobiome, c_strRandom, sep='')
+  mtrxBasisParameters[2,1] = paste(c_strNumberOfFeatures, int_number_features)
+  mtrxBasisParameters[3,1] = paste(c_strNumberOfSamples, int_number_samples)
+  mtrxBasisParameters[4,1] = paste(c_strNumberCounts, iMinNumberCounts)
+  mtrxBasisParameters[5,1] = paste(c_strNumberSamples, iMinNumberSamples)
+
   print("stop func_generate_random_lognormal_matrix")
-  return(list(mat_bugs=mat_bugs, mtrxParameters=mtrxParameters))
+  return(list(mat_bugs=mat_bugs, mtrxParameters=mtrxParameters, mat_bugs_basis = mat_bugs_basis, mtrxBasisParameters = mtrxBasisParameters))
   ### Returns a row major matrix of log-normal data.
 }
 
@@ -1548,7 +1580,7 @@ dSD
 
 
 # 2 Tests 10/222013
-funcGetParamsForReadDepth = function(
+funcGetParmsForReadDepth = function(
 ### From the relationship between the grand mu and grand sd contained in dBetadGradSD
 ### A mu and sd is calculated that should satisfy the given read depth
 dReadDepthPerFeature,
@@ -1650,23 +1682,25 @@ fVerbose = FALSE
   dExpCal = funcGetExp(dMu,dSD)
 
   # Generate feature
-  dFeature = func_zero_inflate(log(dMu), dPercentZero, iNumberSamples, log(dSD), dTruncateThreshold)
+  dFeature_base = func_zero_inflate(log(dMu), dPercentZero, iNumberSamples, log(dSD), dTruncateThreshold)
 
   # Update the distributions to the targeted expectations
   dFeature = funcUpdateDistributionToExpectation( vdFeatures = dFeature, dExp = dExpCal )
 
   # Causes striation, update
   dFeature = funcForceMinCountsInMinSamples( vdFeature = dFeature, iMinNumberCounts = iMinNumberCounts, iMinNumberSamples = iMinNumberSamples)
+  dFeature_base = funcForceMinCountsInMinSamples( vdFeature = dFeature_base, iMinNumberCounts = iMinNumberCounts, iMinNumberSamples = iMinNumberSamples )
 
   # Extra useful measurements, the true and expected means
   dMean = mean(dFeature)
+  dMean_base = mean(dFeature_base)
 
   if(fVerbose)
   {
     plot( dFeature, main = paste("funcMakeFeature","Mean (",round(dMu,2),")",round(dMean,2),"SD(",round(dSD,2),")",round(sd(log(dFeature[which(dFeature>0)])),2),"Exp",round(dExpCal,2)))
   }
 
-  return(list(Feature = dFeature, Exp = dMean, ExpCal = dExpCal))
+  return(list(Feature = dFeature, Feature_base = dFeature_base, Exp = dMean, ExpCal = dExpCal, Exp_base = dMean))
 }
 
 
