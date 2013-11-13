@@ -1481,6 +1481,7 @@ funcGetMu = function(
 dEx,
 dSD
 ){
+  if( (log(dSD)^2 - log(dEx))>745 ) warning(paste("mu = e^(-x), but x =",round(log(dSD)^2 - log(dEx),2),"will give mu=0."))
   return( exp( -1 * ( ( ( log( dSD, exp( 1 ) )^2 ) /2 ) - log( dEx, exp( 1 ) ) ) ) )
 }
 
@@ -1499,6 +1500,7 @@ dBeta
 
   # Get the associated mu
   dMu = funcGetMu( dReadDepthPerFeature, exp( dLogSD ) )
+  if( dMu == 0 ) warning(paste("dMu is numerically 0.  dReadDepthPerFeature=",dReadDepthPerFeature,"and dBeta =",dBeta,"Try making one smaller."))
 
   return( list( dLogMu = log( dMu ), dLogSD = dLogSD ) )
   ### dLogMu: The logMu which, with the logSD, would give the read depth (exp)
