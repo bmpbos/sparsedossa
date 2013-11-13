@@ -642,7 +642,7 @@ fVerbose = FALSE
     }
 
     # Remember this is a vector of expectation not of log mu parameters.
-    print( paste( "LogMu", lsParams$dLogMu, "LogSD", lsParams$dLogSD, "Threshold",(c_iTimesSDIsOutlier*log(lsParams$dLogSD))+log(lsParams$dLogMu)))
+    print( paste( "LogMu", lsParams$dLogMu, "LogSD", lsParams$dLogSD, "Threshold",(c_iTimesSDIsOutlier*exp(lsParams$dLogSD))+exp(lsParams$dLogMu)))
     vdExp = funcTruncatedRLNorm(iNumberMeasurements = int_number_features, 
 				dLogMean            = lsParams$dLogMu, 
 				dLogSD              = lsParams$dLogSD, 
