@@ -698,12 +698,12 @@ fVerbose = FALSE
 ){
   print("start funcGenerateFeatureParameters")
 
-  if(fVerbose & !is.na(vdExp))
+  if(fVerbose & sum(is.na(vdExp))==0)
   {
     hist(vdExp,main="funcGenerateFeatureParameters: Original data expectation")
   }
 
-  if(is.na(vdExp))
+  if(sum(is.na(vdExp))>0)
   {
     print("funcGenerateFeatureParameters: Generating vdExp Vector.")
 
@@ -747,7 +747,7 @@ fVerbose = FALSE
   # Make sure there are no zeros in the expectation vector
   vdExp[ which( vdExp == 0 ) ] = c_dALittleMoreThanZero
 
-  if(is.na(vdSD))
+  if(sum(is.na(vdSD))>0)
   {
     # Generate vector of SD based on mu since it is not known
     print("funcGenerateFeatureParameters: Generating vdSD Vector.")
@@ -776,7 +776,7 @@ fVerbose = FALSE
     }
   }
 
-  if(is.na(vdMu))
+  if(sum(is.na(vdMu))>0)
   {
     print("funcGenerateFeatureParameters: Generating vdMu Vector.")
     # We know the vdExp for each sample
@@ -784,7 +784,7 @@ fVerbose = FALSE
     vdMu = sapply(1:length(vdExp), function(x) funcGetMu(vdExp[x],vdSD[x]))
   }
 
-  if(is.na(vdPercentZero))
+  if(sum(is.na(vdPercentZero))>0)
   {
     # Generate vector of percent zero based on exp since it is not known
     print("funcGenerateFeatureParameters: Generating vdPercentZero Vector.")
