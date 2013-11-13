@@ -758,12 +758,12 @@ fVerbose = FALSE
     # Features will be available to compensate for fluctations.
     if(length(vdExp)==1){vdSD = 0}
 
-    # Floor to close to 0 because less can not be logged
-    viInvalid = which( vdSD <= 0 )
+    # Floor to close to 1 because less can not be logged
+    viInvalid = which( vdSD < 1 )
     if( length( viInvalid ) > 0 )
     {
       print( paste( "funcGenerateFeatureParameters: Changing low SDs to a little more than 0. # occurences = ", length( viInvalid ) ) )
-      vdSD[ viInvalid ] = c_dALittleMoreThanZero
+      vdSD[ viInvalid ] = 1+c_dALittleMoreThanZero
     }
 
     if(fVerbose)
