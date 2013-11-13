@@ -53,6 +53,7 @@ c_strSpike = "spike"
 c_strBugBugAssocations = "BugToBugAssociations"
 c_strMinimumSamples = "Minimum Spiked-in Samples:"
 c_strSyntheticMicrobiome = "SyntheticMicrobiome"
+c_strSyntheticMicrobiomeBasis = "SyntheticMicrobiomeBasis"
 c_strNumberOfFeatures = 'Number of features:'
 c_strNumberOfSamples = 'Number of samples:'
 c_strPercentSpikes = 'Percent spikes:'
@@ -1074,6 +1075,7 @@ fVerbose = FALSE
   # This is appropriate for a zero inflated model but not for a standard lognormal model.
   # So if zero inflation is used then this rounding function is needed otherwise a normal rounding can be performed by not setting the iMinValue.
   mat_bugs = funcRoundMatrix(mtrxData=mat_bugs, fZeroInflated=fZeroInflate)
+  mat_basis = funcRoundMatrix(mtrxData=mat_bugs_basis, fZeroInflated=fZeroInflate)
 
   if(c_dfFreezeSDGrandMu ||c_dfFreezeSDFeatures||c_fPrintLognormalMatrix)
   {
@@ -1114,14 +1116,14 @@ fVerbose = FALSE
 
   # Truth table for basis data
   mtrxBasisParameters = matrix(data=NA,nrow=5,ncol=1)
-  mtrxBasisParameters[1,1] = paste(c_strSyntheticMicrobiome, c_strRandom, sep='')
+  mtrxBasisParameters[1,1] = paste(c_strSyntheticMicrobiomeBasis, c_strRandom, sep='')
   mtrxBasisParameters[2,1] = paste(c_strNumberOfFeatures, int_number_features)
   mtrxBasisParameters[3,1] = paste(c_strNumberOfSamples, int_number_samples)
   mtrxBasisParameters[4,1] = paste(c_strNumberCounts, iMinNumberCounts)
   mtrxBasisParameters[5,1] = paste(c_strNumberSamples, iMinNumberSamples)
 
   print("stop func_generate_random_lognormal_matrix")
-  return(list(mat_bugs=mat_bugs, mtrxParameters=mtrxParameters, mat_bugs_basis = mat_bugs_basis, mtrxBasisParameters = mtrxBasisParameters))
+  return(list(mat_bugs=mat_bugs, mtrxParameters=mtrxParameters, mat_basis = mat_basis, mtrxBasisParameters = mtrxBasisParameters))
   ### Returns a row major matrix of log-normal data.
 }
 
