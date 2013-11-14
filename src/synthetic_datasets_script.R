@@ -460,11 +460,19 @@ pArgs
       if(iNumAssociations > 0)  # Only add associations if associations are requested
       {
         pdf(file.path(dirname(strCountFileName), paste("BugBugSpikeIn_d_", iDataset,sep="")), useDingbats=FALSE)
-        # TODO: Insert bug-bug spikes here
-        mat_random_lognormal_bugbug_spikes = mat_random_lognormal_bugs
+        mat_random_lognormal_bugbug_spikes = func_generate_bug_bug_spikes( mtrxData            = mat_random_lognormal_bugs[["mat_basis"]],
+                                                                           dVarScale           = dVarScale,
+                                                                           funcAssociation     = funcAssociation,
+                                                                           lAssociationParams  = lAssociationParams,
+                                                                           viIdxCorrRangeBugs  = viIdxCorrRangeBugs,
+                                                                           liIdxCorrDomainBugs = liIdxCorrDomainBugs,
+                                                                           iDataset            = iDataset,
+                                                                           vdPercentZero       = vdPercentZero,
+                                                                           fZeroInflate        = TRUE,
+                                                                           fVerbose            = fVerbose )
         mat_random_lognormal_bugbug_spikes_bugs = mat_random_lognormal_bugbug_spikes[["mat_bugs"]]
 
-        vParametersAssociations = c( vParametersAssociations, "parameters go here")#mat_random_lognormal_bugbug_spikes[["m_parameter_rec"]])
+        vParametersAssociations = c( vParametersAssociations, mat_random_lognormal_bugbug_spikes[["mtrxAssnParameters"]])
         list_of_bugs[[length(list_of_bugs)+1]] = mat_random_lognormal_bugbug_spikes_bugs
         lsMicrobiomeKeys[[length(lsMicrobiomeKeys)+1]] = paste(c_strBugBugAssociations,"d",iDataset,"a",iNumAssociations,sep="_")
 
