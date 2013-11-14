@@ -17,11 +17,13 @@ source("synthetic_datasets_script_helper_functions.R")
 
 option_list = list(
   make_option( c("-a","--variance_scale"),          type="double",        default = .01, 
-                     help="Tuning parameter for noise in bug-bug associations"),
-  make_option( c("-b","--bug_to_spike"),            type="integer",       default=5,     
-                     help="Number of bugs to correlate with others"),
+                     help="Tuning parameter for noise in bug-bug associations.  A non-negative value is expected."),
+  make_option( c("-b","--bugs_to_spike"),           type="integer",       default=0,     
+                     help="Number of bugs to correlate with others.  A positive integer value is expected."),
   make_option( c("-c","--calibrate"),               type="character",     default=NA, 
                      help="Calibration file for generating the random log normal data. TSV file (column = feature)"),
+  make_option( c("-d", "--datasetCount"),           type="integer",       default = 1,
+                     help="The number of bug-bug spiked datasets to generate.  A positive integer value is expected." ),
   make_option( c("-e","--read_depth"),              type="integer",       default=8030, 
                      help="Simulated read depth for counts. A positive integer value is expected."),
   make_option( c("-f","--number_features"),         type="integer",       default=300, 
@@ -30,12 +32,6 @@ option_list = list(
                      help = paste("Counts of spiked metadata used in the spike-in dataset",
                                   "These values should be comma delimited values, in the order of the spikeStrength values (if given)",
                                   "Can be one value, in this case the value will be repeated to pair with the spikeCount values (if multiple are present). Example 1,2,3",
-                                  sep = ". ")),
-  make_option( c("-r","--spikeStrength"),           type = "character",   default = "1.0", 
-                     help = paste("Strength of the metadata association with the spiked-in feature",
-                                  "These values should be comma delimited and in the order of the spikeCount values (if given)",
-                                  "Can be one value, in this case the value wil be repeated to pair with the spikeStrength values (if multiple are present)",
-                                  "Example 0.2,0.3,0.4.",
                                   sep = ". ")),
   make_option( c("-j","--lefse_file"),              type="character",     default=NULL, 
                      help="Folder containing lefSe inputs."),
@@ -54,6 +50,12 @@ option_list = list(
                                 "number_metadata*2 = number continuous metadata, number_metadata = number binary metadata, number_metadata = number quaternary metadata",
                                 "A positive integer greater than 0 is expected.",
                                 sep = ". ")),
+  make_option( c("-r","--spikeStrength"),           type = "character",   default = "1.0", 
+                     help = paste("Strength of the metadata association with the spiked-in feature",
+                                  "These values should be comma delimited and in the order of the spikeCount values (if given)",
+                                  "Can be one value, in this case the value wil be repeated to pair with the spikeStrength values (if multiple are present)",
+                                  "Example 0.2,0.3,0.4.",
+                                  sep = ". ")),
   make_option( c("-s","--seed"),                    type="integer",       default=NA, 
                      help=paste("A seed to freeze the random generation of counts/relative abundance",
                                 "If left as default (NA), generation is random",
@@ -81,7 +83,11 @@ option_list = list(
                                 "O removes sparsity, 1 (default) does not change the value and the value.",
                                 sep = ". ")),
   make_option( c("-z","--noZeroInflate"),           action="store_true",  default = FALSE, 
-                     help="If given, zero inflation is not used when generating a feature. This is a flag, it is either included or not included in the commandline, no value needed.")
+                     help="If given, zero inflation is not used when generating a feature. This is a flag, it is either included or not included in the commandline, no value needed."),
+  make_option( c("--noRunMetadata"),                action="store_true",  default = FALSE,
+                     help="If given, no metadata files are generated.  This is a flag, it is either included or not included in the commandline, no value needed." ),
+  make_option( c("--runBugBug"),                    action="store_true",  default = FALSE,
+                     help="If given, bug-bug interaction files are generated in addition to any metadata files.  This is a flag, it is either included or not included in the commandline, no value needed." )
 )
 
 
@@ -95,30 +101,48 @@ pArgs
 
   # Get arguments and check defaults
   seed = options[[ 'seed' ]]
+
   lefse_file = options[[ 'lefse_file' ]]
+
   int_base_metadata_number = options[[ 'number_metadata' ]]
   if(int_base_metadata_number<1) stop("Please provide the base number for metadata generation as 1 or greater.")
+
   int_number_features = options[[ 'number_features' ]]
   if(int_number_features<1) stop("Please provide a number of features of atleast 1")
+
   int_number_samples = options[[ 'number_samples' ]]
   if(int_number_samples<1) stop("Please provide a number of samples of atleast 1")
+
   dPercentOutliers = options[[ 'max_percent_outliers' ]]
   if( (dPercentOutliers>1) | (dPercentOutliers<0) ) stop("Please provide a percent outliers in the range of 0 to 1")
+
   dPercentOutlierSpikins = options[[ 'percent_outlier_spikins' ]]
   if( (dPercentOutlierSpikins>1) | (dPercentOutlierSpikins<0) ) stop("Please provide a percent spikins in the range of 0 to 1")
+
   iReadDepth = options[['read_depth']]
   if(iReadDepth < max(int_number_features, int_number_samples)) stop("Please provide a read depth of atleast equal to feature size or sample size (which ever is larger)")
-  iNumAssociations = options[[ 'bug_to_spike' ]]
+
+  iNumAssociations = options[[ 'bugs_to_spike' ]]
   if(iNumAssociations<0) stop("Please provide a number of associations (bug-bug correlation) greater than or equal to 0")
+
   dVarScale = options[[ 'variance_scale' ]]
+  if(dVarScale<0) stop("Please provide a variance scaling parameter greater than or equal to 0.")
+
   iMaxNumberCorrDomainBugs = options[[ 'max_domain_bugs' ]]
+
+  iNumberDatasets = options[[ "datasetCount" ]]
+
   dPercentMultSpiked = options[[ 'percent_spiked' ]]
   if( (dPercentMultSpiked>1) | (dPercentMultSpiked<0) ) stop("Please provide a percent multivariate spike in the range of 0 to 1")
+
   strCalibrationFile = options[[ 'calibrate' ]]
+
   dMinLevelCountPercent = options[[ 'minLevelPercent' ]]
   if( (dMinLevelCountPercent>1) | (dMinLevelCountPercent<0) ) stop("Please provide a min level percent in the range of 0 to 1")
+
   dMinOccurenceCount = options[[ 'minOccurence' ]]
   if(dMinOccurenceCount<0) stop("Please provide a min occurence greater than or equal to 0")
+
   dMinOccurenceSample = options[[ 'minSample' ]]
   if(dMinOccurenceSample<0) stop("Please provide a min sample greater than or equal to 0")
   if(dMinOccurenceSample>int_number_samples)
@@ -126,9 +150,11 @@ pArgs
     dMinOccurenceSample = int_number_samples
     print(paste("The min sample (for QC) was larger than the actual sample size, reset the min sample to the sample size, minSample is now equal to number_samples which is ",int_number_samples))
   }
+
   if ( options[[ 'scalePercentZeros' ]] < 0 ){ stop( "Please provide a scale percent zero greater than 0." ) }
 
   vdSpikeCount = as.integer(unlist( strsplit( options[[ 'spikeCount' ]], "," ) ) )
+
   vdSpikeStrength = as.double( unlist( strsplit( options[[ 'spikeStrength' ]], "," ) ) )
 
   if( length( vdSpikeCount ) != length( vdSpikeStrength ) )
@@ -145,15 +171,16 @@ pArgs
   }
   mtrxSpikeConfig = cbind( vdSpikeCount, vdSpikeStrength )
 
-  fVerbose = options[[ 'verbose' ]]
+  fVerbose     = options[[ 'verbose' ]]
   fZeroInflate = !options[[ 'noZeroInflate' ]]
+  fRunMetadata = !options[[ "noRunMetadata" ]]
+  fRunBugBug   = options[[ "runBugBug" ]]
 
   # locational arguments
   file_names = lxArgs[[ 'args' ]]
   strNormalizedFileName = file_names[1]
   strCountFileName = file_names[2]
   parameter_filename = file_names[3]
-  strBugBugInteractionFile = file_names[4]
   if(is.na(strNormalizedFileName))
   {
     strNormalizedFileName = "SyntheticMicrobiome.pcl"
@@ -177,140 +204,275 @@ pArgs
   vParametersAssociations = c()
   list_of_bugs = list()
 
-  # generate the metadata
-  lsMetadataInfo = func_generate_metadata( int_base_metadata_number, int_number_samples,dMinLevelCountPercent )
-  mat_metadata =  lsMetadataInfo[[ "mat_metadata" ]]
-  metadata_parameters = lsMetadataInfo[[ "mtrxParameters" ]]
-  vParametersAssociations = c(vParametersAssociations,lsMetadataInfo[[ "mtrxParameters" ]])
-
-  # generate plain random lognormal bugs
-  pdf(file.path(dirname(strCountFileName),"FuncGenerateRLNorm.pdf"), useDingbats=FALSE)
-  # Get the fitted values for calibrating rlnorm
-  vdExp = NA
-  vdMu = NA
-  vdSD = NA
-  vdPercentZero = NA
-  #dSDBeta = c_dSDBeta
-  #dBetaZero = c_dBetaZero
-  #dGrandBeta = c_dBetaGrandSD
-
-  print("Parameters BEFORE Calibration File")
-  print(paste("Length exp",NA,"Length vdMu", NA, "length vdSD", NA, "length vdPercentZero", NA, "Read depth", iReadDepth))
-
-  if(!is.na(strCalibrationFile) & (strCalibrationFile!="NA"))
-  {
-    # Get the fit for the data
-    print("Calibrating...")
-    lsFit = funcCalibrateRLNormToMicrobiome(strCalibrationFile, fVerbose)
-    vdExp = lsFit[["exp"]]
-    vdMu = lsFit[["mu"]]
-    vdSD = lsFit[["sd"]]
-    vdPercentZero = lsFit[["percentZero"]]
-    iReadDepth = lsFit[["dAverageReadDepth"]]
-    int_number_features = lsFit[["iFeatureCount"]]
-  }
-  print("Parameters AFTER Calibration File (if no calibration file is used, defaults are shown)")
-  print(paste("Length exp",length(vdExp),"Length vdMu", length(vdMu), "length vdSD", length(vdSD), "length vdPercentZero", length(vdPercentZero), "Read depth", iReadDepth, "Feature Count", int_number_features))
-
-  mat_random_lognormal_bugs = func_generate_random_lognormal_matrix( int_number_features = int_number_features, 
-                                                                     int_number_samples  = int_number_samples, 
-                                                                     iMinNumberCounts    = dMinOccurenceCount, 
-                                                                     iMinNumberSamples   = dMinOccurenceSample, 
-                                                                     iReadDepth          = iReadDepth, 
-                                                                     vdExp               = vdExp, 
-                                                                     vdMu                = vdMu, 
-                                                                     vdPercentZero       = vdPercentZero, 
-                                                                     vdSD                = vdSD, 
-                                                                     fZeroInflate        = fZeroInflate, 
-                                                                     lSDRel              = list(BetaSD=c_dSDBeta, InterceptSD=c_dSDIntercept), 
-                                                                     lPercentZeroRel     = list( InterceptZero = c_dInterceptZero, 
-                                                                                                 BetaZero      = c_dBetaZero, 
-                                                                                                 Beta2Zero     = c_dBeta2Zero, 
-                                                                                                 Scale         = options[[ 'scalePercentZeros' ]]), 
-                                                                     dBetaGrandSD        = c_dBetaGrandSD, 
-                                                                     fVerbose            = fVerbose )
-
-  lefse_lognormal = NULL
-  if(!is.null(lefse_file))
-  {
-    lefse_file = dirname(lefse_file)
-    lefse_lognormal = func_generate_lefse_matrices(lefse_file, metadata_parameters, int_number_features, int_number_samples, mat_metadata, mat_random_lognormal_bugs[['mat_bugs']], 'lognormal')
-  }
-
-  vParametersAssociations = c(vParametersAssociations,mat_random_lognormal_bugs[["mtrxParameters"]])
-  list_of_bugs[[length(list_of_bugs) + 1]] = mat_random_lognormal_bugs[["mat_bugs"]]
-  hist(as.vector(mat_random_lognormal_bugs[["mat_bugs"]]), main="Final: Log normal matrix")
-  dev.off()
-
-  # generate random lognormal with outliers
-  pdf(file.path(dirname(strCountFileName),"LognormalWithOutliers.pdf"), useDingbats=FALSE)
-  mat_random_lognormal_outliers_bugs = func_generate_random_lognormal_with_outliers(int_number_features=int_number_features, int_number_samples=int_number_samples,dMaxPercentOutliers=dPercentOutliers,dPercentSamples=dPercentOutlierSpikins,mtrxBugs=mat_random_lognormal_bugs[["mat_bugs"]],fVerbose=fVerbose)
-  lefse_outliers = NULL
-  if(!is.null(lefse_file))
-  {
-    lefse_outliers = func_generate_lefse_matrices(lefse_file, metadata_parameters,int_number_features,int_number_samples,mat_metadata, mat_random_lognormal_outliers_bugs[['mat_bugs']], 'outliers')
-  }
-  vParametersAssociations = c(vParametersAssociations,mat_random_lognormal_outliers_bugs[["mtrxParameters"]])
-  list_of_bugs[[length(list_of_bugs) + 1]] = mat_random_lognormal_outliers_bugs[["mat_bugs"]]
-  hist(as.vector(mat_random_lognormal_outliers_bugs[["mat_bugs"]]), main="Final: Log normal matrix with outliers")
-  dev.off()
-
   # Holds key words for the feature names of the microbiomes
-  lsMicrobiomeKeys = c( c_strRandom, c_strOutlier )
+  lsMicrobiomeKeys = c( )
 
-  # There are 4 groups of metadata (2 continuous, binary, and quarternery)
-  number_metadata = c_iCountTypesOfMetadata * int_base_metadata_number
+  # Default number of metadata
+  number_metadata = 0
 
-  # Hold the info to freeze the levels in the data
-  llsLevels = list()
-  lliMetadata = list()
-  lliData = list()
+  if(fRunMetadata){
 
-  # Generate random lognormal with varying amounts of spikes
-  for( iIndex in 1:nrow( mtrxSpikeConfig ) )
-  {
-    vMultConfig = mtrxSpikeConfig[ iIndex, ]
-    iSpikeCount = vMultConfig[ 1 ]
-    sKey = as.character( iSpikeCount )
-    iSpikeStrength = vMultConfig[ 2 ]
-    lsLevels = NULL
-    liData = NULL
-    lviMetadata = NULL
+    # generate the metadata
+    lsMetadataInfo = func_generate_metadata( int_base_metadata_number, int_number_samples,dMinLevelCountPercent )
+    mat_metadata =  lsMetadataInfo[[ "mat_metadata" ]]
+    metadata_parameters = lsMetadataInfo[[ "mtrxParameters" ]]
+    vParametersAssociations = c(vParametersAssociations,lsMetadataInfo[[ "mtrxParameters" ]])
 
-    if( sKey %in% names( llsLevels ) )
-    { 
-      lsLevels = llsLevels[[ sKey ]] 
-      liData = lliData[[ sKey ]]
-      lviMetadata = lliMetadata[[ sKey ]]
+    # generate plain random lognormal bugs
+    pdf(file.path(dirname(strCountFileName),"FuncGenerateRLNorm.pdf"), useDingbats=FALSE)
+    # Get the fitted values for calibrating rlnorm
+    vdExp = NA
+    vdMu = NA
+    vdSD = NA
+    vdPercentZero = NA
+    #dSDBeta = c_dSDBeta
+    #dBetaZero = c_dBetaZero
+    #dGrandBeta = c_dBetaGrandSD
+
+    print("Parameters BEFORE Calibration File")
+    print(paste("Length exp",NA,"Length vdMu", NA, "length vdSD", NA, "length vdPercentZero", NA, "Read depth", iReadDepth))
+
+    if(!is.na(strCalibrationFile) & (strCalibrationFile!="NA"))
+    {
+      # Get the fit for the data
+      print("Calibrating...")
+      lsFit = funcCalibrateRLNormToMicrobiome(strCalibrationFile, fVerbose)
+      vdExp = lsFit[["exp"]]
+      vdMu = lsFit[["mu"]]
+      vdSD = lsFit[["sd"]]
+      vdPercentZero = lsFit[["percentZero"]]
+      iReadDepth = lsFit[["dAverageReadDepth"]]
+      int_number_features = lsFit[["iFeatureCount"]]
     }
+    print("Parameters AFTER Calibration File (if no calibration file is used, defaults are shown)")
+    print( paste( "Length exp",           length(vdExp),
+                  "Length vdMu",          length(vdMu), 
+                  "length vdSD",          length(vdSD), 
+                  "length vdPercentZero", length(vdPercentZero), 
+                  "Read depth",           iReadDepth, 
+                  "Feature Count",        int_number_features ) )
 
-    pdf(file.path(dirname(strCountFileName), paste("SpikeIn_n_", iSpikeCount,"_m_", iSpikeStrength,".pdf",sep="")), useDingbats=FALSE)
-    mat_random_lognormal_multivariate_spikes = func_generate_random_lognormal_with_multivariate_spikes( int_number_features = int_number_features, int_number_samples = int_number_samples,  percent_spikes = dPercentMultSpiked, multiplier = iSpikeStrength, metadata_matrix = mat_metadata, multivariate_parameter = iSpikeCount, dMinLevelCountPercent = dMinLevelCountPercent, mtrxBugs = mat_random_lognormal_bugs[["mat_bugs"]], fZeroInflated = fZeroInflate, lviFrozeMetadataIndices = lviMetadata, liFrozeDataIndicies = liData, lsFrozeLevels = lsLevels, fVerbose = fVerbose)
-    mat_random_lognormal_multivariate_spikes_bugs = mat_random_lognormal_multivariate_spikes[["mat_bugs"]]
+    mat_random_lognormal_bugs = func_generate_random_lognormal_matrix( int_number_features = int_number_features, 
+                                                                       int_number_samples  = int_number_samples, 
+                                                                       iMinNumberCounts    = dMinOccurenceCount, 
+                                                                       iMinNumberSamples   = dMinOccurenceSample, 
+                                                                       iReadDepth          = iReadDepth, 
+                                                                       vdExp               = vdExp, 
+                                                                       vdMu                = vdMu, 
+                                                                       vdPercentZero       = vdPercentZero, 
+                                                                       vdSD                = vdSD, 
+                                                                       fZeroInflate        = fZeroInflate, 
+                                                                       lSDRel              = list(BetaSD=c_dSDBeta, InterceptSD=c_dSDIntercept), 
+                                                                       lPercentZeroRel     = list( InterceptZero = c_dInterceptZero, 
+                                                                                                   BetaZero      = c_dBetaZero, 
+                                                                                                   Beta2Zero     = c_dBeta2Zero, 
+                                                                                                   Scale         = options[[ 'scalePercentZeros' ]]), 
+                                                                       dBetaGrandSD        = c_dBetaGrandSD, 
+                                                                       fVerbose            = fVerbose )
 
-    lliMetadata[[ sKey ]] = mat_random_lognormal_multivariate_spikes[["MetadataIndices"]]
-    lliData[[ sKey ]] = mat_random_lognormal_multivariate_spikes[["DataIndices"]]
-    llsLevels[[ sKey ]] = mat_random_lognormal_multivariate_spikes[["Levels"]]
-
+    lefse_lognormal = NULL
     if(!is.null(lefse_file))
     {
-      lefse_spike = func_generate_lefse_matrices(lefse_file, metadata_parameters, int_number_features, int_number_samples,mat_metadata, mat_random_lognormal_multivariate_spikes_bugs, paste('multivariate_n_', iSpikeCount, '_m_', mult,sep=""))
+      lefse_file = dirname(lefse_file)
+      lefse_lognormal = func_generate_lefse_matrices(lefse_file, metadata_parameters, int_number_features, int_number_samples, mat_metadata, mat_random_lognormal_bugs[['mat_bugs']], 'lognormal')
     }
-    # generate known associations for random lognormal with spikes
-    vParametersAssociations = c( vParametersAssociations, mat_random_lognormal_multivariate_spikes[["m_parameter_rec"]])
-    list_of_bugs[[length(list_of_bugs)+1]] = mat_random_lognormal_multivariate_spikes_bugs
-    lsMicrobiomeKeys[[length(lsMicrobiomeKeys)+1]] = paste(c_strSpike,"n", iSpikeCount,"m",sub(".","_",paste(iSpikeStrength),fixed=TRUE), sep="_")
 
-    hist(as.vector(mat_random_lognormal_multivariate_spikes_bugs), main=paste("Final: Spiked matrix n_", iSpikeCount,"_m_", iSpikeStrength,sep=""))
+    vParametersAssociations = c(vParametersAssociations,mat_random_lognormal_bugs[["mtrxParameters"]])
+    list_of_bugs[[length(list_of_bugs) + 1]] = mat_random_lognormal_bugs[["mat_bugs"]]
+    hist(as.vector(mat_random_lognormal_bugs[["mat_bugs"]]), main="Final: Log normal matrix")
     dev.off()
+
+    # generate random lognormal with outliers
+    pdf(file.path(dirname(strCountFileName),"LognormalWithOutliers.pdf"), useDingbats=FALSE)
+    mat_random_lognormal_outliers_bugs = func_generate_random_lognormal_with_outliers( int_number_features = int_number_features, 
+                                                                                       int_number_samples  = int_number_samples,
+                                                                                       dMaxPercentOutliers = dPercentOutliers,
+                                                                                       dPercentSamples     = dPercentOutlierSpikins,
+                                                                                       mtrxBugs            = mat_random_lognormal_bugs[["mat_bugs"]],
+                                                                                       fVerbose            = fVerbose )
+    lefse_outliers = NULL
+    if(!is.null(lefse_file))
+    {
+      lefse_outliers = func_generate_lefse_matrices(lefse_file, metadata_parameters,int_number_features,int_number_samples,mat_metadata, mat_random_lognormal_outliers_bugs[['mat_bugs']], 'outliers')
+    }
+    vParametersAssociations = c(vParametersAssociations,mat_random_lognormal_outliers_bugs[["mtrxParameters"]])
+    list_of_bugs[[length(list_of_bugs) + 1]] = mat_random_lognormal_outliers_bugs[["mat_bugs"]]
+    hist(as.vector(mat_random_lognormal_outliers_bugs[["mat_bugs"]]), main="Final: Log normal matrix with outliers")
+    dev.off()
+
+    # Holds key words for the feature names of the microbiomes
+    lsMicrobiomeKeys[[1]] = c_strRandom
+    lsMicrobiomeKeys[[2]] = c_strOutlier
+
+    # There are 4 groups of metadata (2 continuous, binary, and quarternery)
+    number_metadata = c_iCountTypesOfMetadata * int_base_metadata_number
+
+    # Hold the info to freeze the levels in the data
+    llsLevels = list()
+    lliMetadata = list()
+    lliData = list()
+
+    # Generate random lognormal with varying amounts of spikes
+    for( iIndex in 1:nrow( mtrxSpikeConfig ) )
+    {
+      vMultConfig = mtrxSpikeConfig[ iIndex, ]
+      iSpikeCount = vMultConfig[ 1 ]
+      sKey = as.character( iSpikeCount )
+      iSpikeStrength = vMultConfig[ 2 ]
+      lsLevels = NULL
+      liData = NULL
+      lviMetadata = NULL
+
+      if( sKey %in% names( llsLevels ) )
+      { 
+        lsLevels = llsLevels[[ sKey ]] 
+        liData = lliData[[ sKey ]]
+        lviMetadata = lliMetadata[[ sKey ]]
+      }
+
+      pdf(file.path(dirname(strCountFileName), paste("SpikeIn_n_", iSpikeCount,"_m_", iSpikeStrength,".pdf",sep="")), useDingbats=FALSE)
+      mat_random_lognormal_multivariate_spikes = func_generate_random_lognormal_with_multivariate_spikes( int_number_features     = int_number_features, 
+                                                                                                          int_number_samples      = int_number_samples,  
+                                                                                                          percent_spikes          = dPercentMultSpiked, 
+                                                                                                          multiplier              = iSpikeStrength, 
+                                                                                                          metadata_matrix         = mat_metadata, 
+                                                                                                          multivariate_parameter  = iSpikeCount, 
+                                                                                                          dMinLevelCountPercent   = dMinLevelCountPercent, 
+                                                                                                          mtrxBugs                = mat_random_lognormal_bugs[["mat_bugs"]], 
+                                                                                                          fZeroInflated           = fZeroInflate, 
+                                                                                                          lviFrozeMetadataIndices = lviMetadata, 
+                                                                                                          liFrozeDataIndicies     = liData, 
+                                                                                                          lsFrozeLevels           = lsLevels, 
+                                                                                                          fVerbose                = fVerbose )
+      mat_random_lognormal_multivariate_spikes_bugs = mat_random_lognormal_multivariate_spikes[["mat_bugs"]]
+
+      lliMetadata[[ sKey ]] = mat_random_lognormal_multivariate_spikes[["MetadataIndices"]]
+      lliData[[ sKey ]] = mat_random_lognormal_multivariate_spikes[["DataIndices"]]
+      llsLevels[[ sKey ]] = mat_random_lognormal_multivariate_spikes[["Levels"]]
+
+      if(!is.null(lefse_file))
+      {
+        lefse_spike = func_generate_lefse_matrices( lefse_file, 
+                                                    metadata_parameters, 
+                                                    int_number_features, 
+                                                    int_number_samples,
+                                                    mat_metadata, 
+                                                    mat_random_lognormal_multivariate_spikes_bugs, 
+                                                    paste('multivariate_n_', iSpikeCount, '_m_', mult,sep=""))
+      }
+      # generate known associations for random lognormal with spikes
+      vParametersAssociations = c( vParametersAssociations, mat_random_lognormal_multivariate_spikes[["m_parameter_rec"]])
+      list_of_bugs[[length(list_of_bugs)+1]] = mat_random_lognormal_multivariate_spikes_bugs
+      lsMicrobiomeKeys[[length(lsMicrobiomeKeys)+1]] = paste(c_strSpike,"n", iSpikeCount,"m",sub(".","_",paste(iSpikeStrength),fixed=TRUE), sep="_")
+
+      hist(as.vector(mat_random_lognormal_multivariate_spikes_bugs), main=paste("Final: Spiked matrix n_", iSpikeCount,"_m_", iSpikeStrength,sep=""))
+      dev.off()
+    }
   }
 
-  # Add bug associated bug microbiome
-#  lsBugBugInfo = func_generate_bug_bug_spikes(int_number_features=int_number_features, int_number_samples=int_number_samples, iMinNumberCounts=dMinOccurenceCount, iMinNumberSamples=dMinOccurenceSample, iReadDepth=iReadDepth, vdExp=vdExp, vdMu=vdMu, vdPercentZero=vdPercentZero, vdSD=vdSD, fZeroInflate=fZeroInflate, lSDRel=list(BetaSD=c_dSDBeta, InterceptSD=c_dSDIntercept), lPercentZeroRel = list(InterceptZero=c_dInterceptZero, BetaZero=c_dBetaZero, Beta2Zero=c_dBeta2Zero, Scale=options[[ 'scalePercentZeros' ]]), dBetaGrandSD=c_dBetaGrandSD, fVerbose=fVerbose, dVarScale=dVarScale,iNumAssociations=iNumAssociations,iMaxNumberCorrDomainBugs=iMaxNumberCorrDomainBugs)
-#  list_of_bugs[[length(list_of_bugs)+1]] = lsBugBugInfo[["mtrxBugs"]]
-#  vParametersAssociations = c(vParametersAssociations,lsBugBugInfo[["vStrParameters"]])
-#  lsMicrobiomeKeys[[length(lsMicrobiomeKeys)+1]] = c_strBugBugAssocations
+  if(fRunBugBug){
 
+    # Get the fitted values for calibrating rlnorm
+    vdExp = NA
+    vdMu = NA
+    vdSD = NA
+    vdPercentZero = NA
+
+    print("Parameters for Bug-Bug spikes BEFORE Calibration File")
+    print(paste("Length exp",NA,"Length vdMu", NA, "length vdSD", NA, "length vdPercentZero", NA, "Read depth", iReadDepth))
+
+    if(!is.na(strCalibrationFile) & (strCalibrationFile!="NA"))
+    {
+      # Get the fit for the data
+      print("Calibrating...")
+      lsFit = funcCalibrateRLNormToMicrobiome(strCalibrationFile, fVerbose)
+      vdExp = lsFit[["exp"]]
+      vdMu = lsFit[["mu"]]
+      vdSD = lsFit[["sd"]]
+      vdPercentZero = lsFit[["percentZero"]]
+      iReadDepth = lsFit[["dAverageReadDepth"]]
+      int_number_features = lsFit[["iFeatureCount"]]
+    }
+    print("Parameters for Bug-Bug spikes AFTER Calibration File (if no calibration file is used, defaults are shown)")
+    print( paste( "Length exp",           length(vdExp),
+                  "Length vdMu",          length(vdMu), 
+                  "length vdSD",          length(vdSD), 
+                  "length vdPercentZero", length(vdPercentZero), 
+                  "Read depth",           iReadDepth, 
+                  "Feature Count",        int_number_features ) )
+
+
+    # Get the initial mu vector for generating features so that the datasets are iid   
+    lsInitialDistribution = funcGenerateFeatureParameters(int_number_features = int_number_features,
+                                                          int_number_samples  = int_number_samples,
+                                                          iMinNumberSamples   = dMinOccurenceSample,
+                                                          iReadDepth          = iReadDepth,
+                                                          vdExp               = vdExp,
+                                                          vdMu                = vdMu,
+                                                          vdSD                = vdSD,
+                                                          vdPercentZero       = vdPercentZero,
+                                                          lSDRel              = list( BetaSD = c_dSDBeta, InterceptSD = c_dSDIntercept ),
+                                                          lPercentZeroRel     = list( InterceptZero = c_dInterceptZero,
+                                                                                      BetaZero      = c_dBetaZero,
+                                                                                      Beta2Zero     = c_dBeta2Zero,
+                                                                                      Scale         = options[[ 'scalePercentZeros' ]]), 
+                                                          dBetaGrandSD        = c_dBetaGrandSD,
+                                                          fVerbose            = fVerbose)
+
+
+    # Update the Mu, SD and Percent zero bugs and report on distributions                                                                                                                                          
+    vdMu = lsInitialDistribution[["mu"]]
+    vdSD = lsInitialDistribution[["sd"]]
+    vdPercentZero = lsInitialDistribution[["PercentZero"]]
+    vdExp = lsInitialDistribution[["exp"]]
+
+
+    for( iDataset in 1:iNumberDatasets ){
+      # generate plain random lognormal bugs
+      pdf(file.path(dirname(strCountFileName),paste("FuncGenerateRLNormBugBug_d_",iDataset,".pdf",sep="")), useDingbats=FALSE)
+
+
+      mat_random_lognormal_bugs = func_generate_random_lognormal_matrix( int_number_features = int_number_features, 
+                                                                         int_number_samples  = int_number_samples, 
+                                                                         iMinNumberCounts    = dMinOccurenceCount, 
+                                                                         iMinNumberSamples   = dMinOccurenceSample, 
+                                                                         iReadDepth          = iReadDepth, 
+                                                                         vdExp               = vdExp, 
+                                                                         vdMu                = vdMu, 
+                                                                         vdPercentZero       = vdPercentZero, 
+                                                                         vdSD                = vdSD, 
+                                                                         fZeroInflate        = fZeroInflate, 
+                                                                         lSDRel              = list(BetaSD=c_dSDBeta, InterceptSD=c_dSDIntercept), 
+                                                                         lPercentZeroRel     = list( InterceptZero = c_dInterceptZero, 
+                                                                                                     BetaZero      = c_dBetaZero, 
+                                                                                                     Beta2Zero     = c_dBeta2Zero, 
+                                                                                                     Scale         = options[[ 'scalePercentZeros' ]]), 
+                                                                         dBetaGrandSD        = c_dBetaGrandSD, 
+                                                                         fVerbose            = fVerbose )
+
+      mat_random_lognormal_bugs[["mtrxBasisParameters"]][1,1] = paste(mat_random_lognormal_bugs[["mtrxBasisParameters"]][1,1],"d",iDataset,sep="_")
+      vParametersAssociations = c(vParametersAssociations,mat_random_lognormal_bugs[["mtrxBasisParameters"]])
+      list_of_bugs[[length(list_of_bugs) + 1]] = mat_random_lognormal_bugs[["mat_basis"]]
+      lsMicrobiomeKeys[[length(lsMicrobiomeKeys)+1]] = paste(c_strBugBugAssociations,c_strNull,"d",iDataset,sep="_")
+      hist(as.vector(mat_random_lognormal_bugs[["mat_basis"]]), main="Final: Basis log normal matrix")
+      dev.off()
+
+      if(iNumAssociations > 0)  # Only add associations if associations are requested
+      {
+        pdf(file.path(dirname(strCountFileName), paste("BugBugSpikeIn_d_", iDataset,sep="")), useDingbats=FALSE)
+        # TODO: Insert bug-bug spikes here
+        mat_random_lognormal_bugbug_spikes = mat_random_lognormal_bugs
+        mat_random_lognormal_bugbug_spikes_bugs = mat_random_lognormal_bugbug_spikes[["mat_bugs"]]
+
+        vParametersAssociations = c( vParametersAssociations, "parameters go here")#mat_random_lognormal_bugbug_spikes[["m_parameter_rec"]])
+        list_of_bugs[[length(list_of_bugs)+1]] = mat_random_lognormal_bugbug_spikes_bugs
+        lsMicrobiomeKeys[[length(lsMicrobiomeKeys)+1]] = paste(c_strBugBugAssociations,"d",iDataset,"a",iNumAssociations,sep="_")
+
+        hist(as.vector(mat_random_lognormal_bugbug_spikes_bugs), main=paste("Final: Bug-Bug Spiked matrix d=",iDataset,sep=""))
+        dev.off()
+      }
+    }
+  }
   # preallocate final pcl  matrix
   final_matrix = matrix(data=NA,nrow=(number_metadata+int_number_features*length(list_of_bugs))+1, ncol=(int_number_samples+1))
   final_matrix[1,1] = '#SampleID'
