@@ -436,12 +436,15 @@ pArgs
 
     # Get the indices for the associations
     lsAssociationIdx = func_get_corr_indices( iNumAssociations = iNumAssociations,
-                                              iMaxDomainNumber = iMaxDomainNumber,
+                                              iMaxDomainNumber = iMaxNumberCorrDomainBugs,
                                               iNumFeatures     = int_number_features )
 
     # Update the parameters
     viIdxCorrRangeBugs  = lsAssociationIdx[["RangeBugs"]]
     liIdxCorrDomainBugs = lsAssociationIdx[["DomainBugs"]]
+
+    # Flag to add the parameters only once, since the datasets are iid                                              
+    fAddedParameters = FALSE
 
     for( iDataset in 1:iNumberDatasets ){
       # generate plain random lognormal bugs
@@ -466,8 +469,12 @@ pArgs
                                                                          dBetaGrandSD        = c_dBetaGrandSD, 
                                                                          fVerbose            = fVerbose )
 
-      mat_random_lognormal_bugs[["mtrxBasisParameters"]][1,1] = paste(mat_random_lognormal_bugs[["mtrxBasisParameters"]][1,1],"d",iDataset,sep="_")
-      vParametersAssociations = c(vParametersAssociations,mat_random_lognormal_bugs[["mtrxBasisParameters"]])
+      if( !fAddedParameters ){
+        vParametersAssociations = c(vParametersAssociations,
+                                    mat_random_lognormal_bugs[["mtrxBasisParameters"]],
+                                    paste(c_strNumberDatasets,iNumberDatasets))
+        fAddedParameters==TRUE
+      }
       list_of_bugs[[length(list_of_bugs) + 1]] = mat_random_lognormal_bugs[["mat_basis"]]
       lsMicrobiomeKeys[[length(lsMicrobiomeKeys)+1]] = paste(c_strBugBugAssociations,c_strNull,"d",iDataset,sep="_")
       hist(as.vector(mat_random_lognormal_bugs[["mat_basis"]]), main="Final: Basis log normal matrix")
@@ -482,13 +489,18 @@ pArgs
                                                                            lAssociationParams  = lAssociationParams,
                                                                            viIdxCorrRangeBugs  = viIdxCorrRangeBugs,
                                                                            liIdxCorrDomainBugs = liIdxCorrDomainBugs,
-                                                                           iDataset            = iDataset,
+                                                                           iMaxDomainNumber    = iMaxNumberCorrDomainBugs,
                                                                            vdPercentZero       = vdPercentZero,
                                                                            fZeroInflate        = TRUE,
                                                                            fVerbose            = fVerbose )
         mat_random_lognormal_bugbug_spikes_bugs = mat_random_lognormal_bugbug_spikes[["mat_bugs"]]
 
-        vParametersAssociations = c( vParametersAssociations, mat_random_lognormal_bugbug_spikes[["mtrxAssnParameters"]])
+        if( !fAddedParameters ){
+          vParametersAssociations = c( vParametersAssociations,
+                                       mat_random_lognormal_bugbug_spikes[["mtrxAssnParameters"]],
+                                       paste(c_strNumberDatasets,iNumberDatasets) )
+          fAddedParameters = TRUE
+        }
         list_of_bugs[[length(list_of_bugs)+1]] = mat_random_lognormal_bugbug_spikes_bugs
         lsMicrobiomeKeys[[length(lsMicrobiomeKeys)+1]] = paste(c_strBugBugAssociations,"d",iDataset,"a",iNumAssociations,sep="_")
 
@@ -501,10 +513,12 @@ pArgs
   final_matrix = matrix(data=NA,nrow=(number_metadata+int_number_features*length(list_of_bugs))+1, ncol=(int_number_samples+1))
   final_matrix[1,1] = '#SampleID'
   final_matrix[1,2:(int_number_samples + 1)] = paste('Sample',1:int_number_samples,sep='')
-  final_matrix[2:(number_metadata+1),1] = paste(c_strMetadata,1:number_metadata,sep='')
-  vdDim = dim(mat_metadata)
-  mat_metadata[(floor(vdDim[1]/2)+1):vdDim[1],] = paste("Group_",mat_metadata[(floor(vdDim[1]/2)+1):vdDim[1],],sep="")
-  final_matrix[2:(number_metadata+1),2:(int_number_samples+1)] = mat_metadata
+  if(number_metadata > 0){
+    final_matrix[2:(number_metadata+1),1] = paste(c_strMetadata,1:number_metadata,sep='')
+    vdDim = dim(mat_metadata)
+    mat_metadata[(floor(vdDim[1]/2)+1):vdDim[1],] = paste("Group_",mat_metadata[(floor(vdDim[1]/2)+1):vdDim[1],],sep="")
+    final_matrix[2:(number_metadata+1),2:(int_number_samples+1)] = mat_metadata
+  }
 
   # Make a matrix for counts (use the other for normalized)
   mtrxFinalCounts = final_matrix
