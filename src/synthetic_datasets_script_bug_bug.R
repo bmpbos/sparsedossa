@@ -19,11 +19,10 @@ c_strCorrDomainBugs = "Number of bugs each correlated bug is correlated with:"
 c_strCorrDomainBugsIdx ="Indices of the bugs each correlated bug is correlated with:"
 c_strCorrRangeBugsIdx = "Indices of bugs correlated with others:"
 c_strMaxCorrDomainBugs = "Maximum number of bugs with which one bug is correlated:"
-c_strNumberOfAssociations = "Number of associations (bugs correlated with others):"
 c_strNoiseScaling  = "Scaling parameter for variance of noise:"
+c_strNumberDatasets = "Number of datasets generated:"
+c_strNumberOfAssociations = "Number of associations (bugs correlated with others):"
 
-funcAssociation = func_linear_association
-lAssociationParams = list(dIntercept = 0, vdSlope = 1)
 
 func_get_corr_indices = function(
 ### A function to obtain the indices of the range and domain bugs
@@ -34,6 +33,8 @@ iMaxDomainNumber,
 iNumFeatures
 ### The total number of features
 ){
+
+  print("start func_get_corr_indices")
 
   # We can choose any index to begin with
   possibleIndices = seq(1,iNumFeatures)
@@ -72,7 +73,6 @@ iNumFeatures
       possibleIndices                     <- setdiff(possibleIndices,liIdxCorrDomainBugs[[iAssociation]])
       iAssociation                        <- iAssociation + 1
       iNumAssociationsRemaining           <- iNumAssociationsRemaining - 1
-      print(c(iAssociation,iNumAssociationsRemaining))
 
     }
 
@@ -95,8 +95,10 @@ iNumFeatures
     }
   }
 
-  return( list( viIdxCorrRangeBugs  = viIdxCorrRangeBugs,
-                liIdxCorrDomainBugs = liIdxCorrDomainBugs ) )
+  print("stop func_get_corr_indices")
+
+  return( list( RangeBugs  = viIdxCorrRangeBugs,
+                DomainBugs = liIdxCorrDomainBugs ) )
 }
 
 func_linear_association = function(
@@ -116,39 +118,41 @@ dVarScale
       if( length(vdSlope) < n.features ) vdSlope <- rep( vdSlope,ceiling( n.features/length( vdSlope ) ) )
       vdfeature.y = dIntercept + apply(vdSlope[1:n.features]*dfeatures.x,2,sum) + dVarScale * sum( apply( dfeatures.x,1,var ) )
       vdSlopeUsed = vdSlope[1:n.features]
+   } else {
+     vdfeature.y = dIntercept + vdSlope[1] * dfeatures.x + dVarScale
+     vdSlopeUsed = vdSlope[1]
    }
-   vdfeature.y = dIntercept + vdSlope[1] * dfeatures.x + dVarScale
-   vdSlopeUsed = vdSlope[1]
    return( list(vdfeature.y = vdfeature.y,
                 vdSlopeUsed = vdSlopeUsed) )
 }
 
 ### Not formally tested                                                                                                                                                                                          
 func_generate_bug_bug_spikes = function(
-### Add spiked bug-bug correlations                                                                                                                                                                              
+### Add spiked bug-bug correlations
 mtrxData,
-### The matrix into which to spike the associations                                                                                                                                                              
+### The matrix into which to spike the associations
 dVarScale,
-### The scaling parameter for the VARIANCE (the noise added will have variance dVarScale*var(bug))                                                                                                               
+### The scaling parameter for the VARIANCE (the noise added will have variance dVarScale*var(bug))
 funcAssociation,
-### The function to be used to generate the association; takes two bugs and the variance scaling parameter                                                                                                       
+### The function to be used to generate the association; takes two bugs and the variance scaling parameter
 lAssociationParams,
-### The possible extra parameters for the association function                                                                                                                                                   
+### The possible extra parameters for the association function
 viIdxCorrRangeBugs,
-### row indices of the range bugs as a vector                                                                                                                                                                    
+### row indices of the range bugs as a vector
 liIdxCorrDomainBugs,
-### The row indices of the domain bugs, arranged as a list                                                                                                                                                       
-iDataset,
-### The dataset number this matrix corresponds to                                                                                                                                                                
+### The row indices of the domain bugs, arranged as a list
+iMaxDomainNumber,
+### The maximum number of features with which one feature can be correlated
 vdPercentZero = NA,
-### Vector of percent zero parameters for features if not supplied, one will be generated by rlnorm                                                                                                              
+### Vector of percent zero parameters for features if not supplied, one will be generated by rlnorm
 fZeroInflate = TRUE,
-### Controls if zero inflation is used.                                                                                                                                                                          
+### Controls if zero inflation is used.
 fVerbose = FALSE
-### If true, plotting and logging occur                                                                                                                                                                          
+### If true, plotting and logging occur
 ){
   print("start func_generate_bug_bug_spikes")
-  # Define some parameters                                                                                                                                                                                       
+
+  # Define some parameters                                                                                                                                                                                      
   iNumAssociations           <- length( liIdxCorrDomainBugs )
   iNumAssociationsToGenerate <- 0
   iNumFeatures               <- nrow( mtrxData )
@@ -187,7 +191,7 @@ fVerbose = FALSE
     iNumAssociations = 0
   }
   if( iNumAssociations > floor(iNumFeatures/2) ){
-     print(paste( iNumAssociations,"associations cannot be formed with only", int_number_features,
+     print(paste( iNumAssociations,"associations cannot be formed with only", iNumFeatures,
                   "features: The number of associations must be less than half the number of features" ) )
     iNumAssociations = 0
   }
@@ -230,34 +234,38 @@ fVerbose = FALSE
     ## End generating associations                                                                                                                                                                               
 
   } else {
-    viNumCorrDomainBugs = NA
-    viCorrRangeBugsIdx  = NA
-    liCorrDomainBugsIdx = NA
+    viNumberCorrDomainBugs = NA
+    viIdxCorrRangeBugs     = NA
+    liIdxCorrDomainBugs    = NA
 
-    strNumCorrDomainBugs = "NA"
-    strCorrRangeBugsIdx  = "NA"
-    strCorrDomainBugsIdx = "NA"
+    strNumberCorrDomainBugs = "NA"
+    strIdxCorrRangeBugs     = "NA"
+    strIdxCorrDomainBug     = "NA"
+
+    mtrx_final <- mtrxData
   }
 
   # This will hold the associations that you create and be placed in the truth file that is records association spike-ins for later assessment                                                                   
   # It starts with the name of the microbiome you are creating                                                                                                                                                   
   # Parameters of interest and then your feature associations                                                                                                                                                    
-  mtrxParameters = matrix(data=NA, nrow=11, ncol=1)
+  mtrxParameters = matrix(data=NA, nrow=9, ncol=1)
 
-  mtrxParameters[1,1]  = paste(c_strSyntheticMicrobiome,   c_strBugBugAssociations, "_d_", iDataset, sep='')
-  mtrxParameters[2,1]  = paste(c_strNumberOfFeatures,      int_number_features)
-  mtrxParameters[3,1]  = paste(c_strNumberOfSamples,       int_number_samples)
-  mtrxParameters[4,1]  = paste(c_strNumberCounts,          iMinNumberCounts ) )
-  mtrxParameters[5,1]  = paste(c_strMinimumSamples,        iMinNumberSamples ) )
-  mtrxParameters[6,1]  = paste(c_strNoiseScaling,          dVarScale ) )
-  mtrxParameters[7,1]  = paste(c_strNumberOfAssociations,  iNumAssociations ) )
-  mtrxParameters[8,1]  = paste(c_strMaxCorrDomainBugs,     iMaxNumberCorrDomainBugs ) )
-  mtrxParameters[9,1]  = paste(c_strCorrDomainBugs,        strNumCorrDomainBugs ) )
-  mtrxParameters[10,1] = paste(c_strCorrRangeBugsIdx,      strCorrRangeBugsIdx ) )
-  mtrxParameters[11,1] = paste(c_strCorrDomainBugsIdx,     strCorrDomainBugsIdx ) )
+  mtrxParameters[1,1] = paste(c_strSyntheticMicrobiome,   c_strBugBugAssociations, sep='')
+  mtrxParameters[2,1] = paste(c_strNumberOfFeatures,      iNumFeatures)
+  mtrxParameters[3,1] = paste(c_strNumberOfSamples,       ncol(mtrxData))
+  mtrxParameters[4,1] = paste(c_strNoiseScaling,          dVarScale )
+  mtrxParameters[5,1] = paste(c_strNumberOfAssociations,  iNumAssociations )
+  mtrxParameters[6,1] = paste(c_strMaxCorrDomainBugs,     iMaxDomainNumber )
+  mtrxParameters[7,1] = paste(c_strCorrDomainBugs,        strNumberCorrDomainBugs )
+  mtrxParameters[8,1] = paste(c_strCorrRangeBugsIdx,      strIdxCorrRangeBugs )
+  mtrxParameters[9,1] = paste(c_strCorrDomainBugsIdx,     strIdxCorrDomainBugs )
 
-  print("stop func_generate_bug_bug_spikes_matrix")
+  print("stop func_generate_bug_bug_spikes")
 
-  return(list( mtrxAssnParameters = mtrxParameters
-               mat_bugs           = mtrxFinal))
+  return(list( mtrxAssnParameters = mtrxParameters,
+               mat_bugs           = mtrx_final))
 }
+
+# Define some necessary parameters
+funcAssociation = func_linear_association
+lAssociationParams = list(dIntercept = 0, vdSlope = 1)
