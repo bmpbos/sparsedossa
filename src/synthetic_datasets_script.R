@@ -14,12 +14,13 @@
 
 source("synthetic_datasets_script_constants.R")
 source("synthetic_datasets_script_helper_functions.R")
+source("synthetic_datasets_script_bug_bug.R")
 
 option_list = list(
   make_option( c("-a","--variance_scale"),          type="double",        default = .01, 
                      help="Tuning parameter for noise in bug-bug associations.  A non-negative value is expected."),
   make_option( c("-b","--bugs_to_spike"),           type="integer",       default=0,     
-                     help="Number of bugs to correlate with others.  A positive integer value is expected."),
+                     help="Number of bugs to correlate with others.  A non-negative integer value is expected."),
   make_option( c("-c","--calibrate"),               type="character",     default=NA, 
                      help="Calibration file for generating the random log normal data. TSV file (column = feature)"),
   make_option( c("-d", "--datasetCount"),           type="integer",       default = 1,
@@ -129,8 +130,14 @@ pArgs
   if(dVarScale<0) stop("Please provide a variance scaling parameter greater than or equal to 0.")
 
   iMaxNumberCorrDomainBugs = options[[ 'max_domain_bugs' ]]
+  if(iMaxNumberCorrDomainBugs<0) stop("Please provide a maximum number of domain features greater than or equal to 0")
+  if(iMaxNumberCorrDomainBugs==0){
+    iNumAssociations <-0
+    warning("The maximum number of domain features is 0: setting the number of bug-bug associations to 0")
+  }
 
   iNumberDatasets = options[[ "datasetCount" ]]
+  if(iNumberDatasets<1) stop("Please provide a number of datasets which is at least 1.")
 
   dPercentMultSpiked = options[[ 'percent_spiked' ]]
   if( (dPercentMultSpiked>1) | (dPercentMultSpiked<0) ) stop("Please provide a percent multivariate spike in the range of 0 to 1")
@@ -426,6 +433,15 @@ pArgs
     vdPercentZero = lsInitialDistribution[["PercentZero"]]
     vdExp = lsInitialDistribution[["exp"]]
 
+
+    # Get the indices for the associations
+    lsAssociationIdx = func_get_corr_indices( iNumAssociations = iNumAssociations,
+                                              iMaxDomainNumber = iMaxDomainNumber,
+                                              iNumFeatures     = int_number_features )
+
+    # Update the parameters
+    viIdxCorrRangeBugs  = lsAssociationIdx[["RangeBugs"]]
+    liIdxCorrDomainBugs = lsAssociationIdx[["DomainBugs"]]
 
     for( iDataset in 1:iNumberDatasets ){
       # generate plain random lognormal bugs
