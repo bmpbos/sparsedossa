@@ -12,9 +12,9 @@
 # (contact Timothy Tickle, ttickle@hsph.harvard.edu).
 #######################################################################################
 
-source("synthetic_datasets_script_constants.R")
-source("synthetic_datasets_script_helper_functions.R")
-source("synthetic_datasets_script_bug_bug.R")
+source("~/sfle/input/ccrepe_validation/src/sparsedossa/src/synthetic_datasets_script_constants.R")
+source("~/sfle/input/ccrepe_validation/src/sparsedossa/src/synthetic_datasets_script_helper_functions.R")
+source("~/sfle/input/ccrepe_validation/src/sparsedossa/src/synthetic_datasets_script_bug_bug.R")
 
 option_list = list(
   make_option( c("-a","--variance_scale"),          type="double",        default = .01, 
@@ -502,7 +502,7 @@ pArgs
           fAddedParameters = TRUE
         }
         list_of_bugs[[length(list_of_bugs)+1]] = mat_random_lognormal_bugbug_spikes_bugs
-        lsMicrobiomeKeys[[length(lsMicrobiomeKeys)+1]] = paste(c_strBugBugAssociations,"d",iDataset,"a",iNumAssociations,sep="_")
+        lsMicrobiomeKeys[[length(lsMicrobiomeKeys)+1]] = paste(c_strBugBugAssociations,"a",iNumAssociations,"d",iDataset,sep="_")
 
         hist(as.vector(mat_random_lognormal_bugbug_spikes_bugs), main=paste("Final: Bug-Bug Spiked matrix d=",iDataset,sep=""))
         dev.off()
