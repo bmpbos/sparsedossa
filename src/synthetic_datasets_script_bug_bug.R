@@ -229,6 +229,15 @@ fVerbose = FALSE
       lAssociationParams$dfeatures.x   <- mtrxData[ liIdxCorrDomainBugs[[ i ]], ]
       vdfeature.y                      <- do.call( what = funcAssociation,
                                                    args = lAssociationParams )
+
+      if( is.matrix(lAssociationParams$dfeatures.x) ){
+        for(k in 1:nrow(lAssociationParams$dfeatures.x)){
+          plot( vdfeature.y$vdfeature.y, lAssociationParams$dfeatures.x[k,] )
+        }
+      } else {
+        plot( vdfeature.y$vdfeature.y, lAssociationParams$dfeatures.x )
+      }
+
       mtrx_final[viIdxCorrRangeBugs[i],] <- vdfeature.y$vdfeature.y
     }
     ## End generating associations                                                                                                                                                                               
