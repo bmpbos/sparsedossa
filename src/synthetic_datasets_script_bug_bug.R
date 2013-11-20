@@ -249,7 +249,7 @@ fVerbose = FALSE
 
     strNumberCorrDomainBugs = "NA"
     strIdxCorrRangeBugs     = "NA"
-    strIdxCorrDomainBug     = "NA"
+    strIdxCorrDomainBugs    = "NA"
 
     mtrx_final <- mtrxData
   }
