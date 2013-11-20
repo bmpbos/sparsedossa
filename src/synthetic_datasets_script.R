@@ -444,7 +444,8 @@ pArgs
     liIdxCorrDomainBugs = lsAssociationIdx[["DomainBugs"]]
 
     # Flag to add the parameters only once, since the datasets are iid                                              
-    fAddedParameters = FALSE
+    fAddedParameters    = FALSE
+    fAddBasisParameters = FALSE
 
     for( iDataset in 1:iNumberDatasets ){
       # generate plain random lognormal bugs
@@ -506,6 +507,35 @@ pArgs
 
         hist(as.vector(mat_random_lognormal_bugbug_spikes_bugs), main=paste("Final: Bug-Bug Spiked matrix d=",iDataset,sep=""))
         dev.off()
+
+      } else if(!fAddBasisParameters){   # Run just to get truth file parameters for the null matrices
+
+        pdf(file.path(dirname(strCountFileName), "BugBugSpikeIn"), useDingbats=FALSE)
+        mat_random_lognormal_bugbug_spikes = func_generate_bug_bug_spikes( mtrxData            = mat_random_lognormal_bugs[["mat_basis"]],
+                                                                           dVarScale           = dVarScale,
+                                                                           funcAssociation     = funcAssociation,
+                                                                           lAssociationParams  = lAssociationParams,
+                                                                           viIdxCorrRangeBugs  = NULL,
+                                                                           liIdxCorrDomainBugs = NULL,
+                                                                           iMaxDomainNumber    = iMaxNumberCorrDomainBugs,
+                                                                           vdPercentZero       = vdPercentZero,
+                                                                           fZeroInflate        = TRUE,
+                                                                           fVerbose            = fVerbose )
+        mat_random_lognormal_bugbug_spikes_bugs = mat_random_lognormal_bugbug_spikes[["mat_bugs"]]
+
+        if( !fAddedParameters ){
+          vParametersAssociations = c( vParametersAssociations,
+                                       mat_random_lognormal_bugbug_spikes[["mtrxAssnParameters"]],
+                                       paste(c_strNumberDatasets,iNumberDatasets) )
+          fAddedParameters = TRUE
+        }
+        list_of_bugs[[length(list_of_bugs)+1]] = mat_random_lognormal_bugbug_spikes_bugs
+        lsMicrobiomeKeys[[length(lsMicrobiomeKeys)+1]] = paste(c_strBugBugAssociations,"a",iNumAssociations,"d",iDataset,sep="_")
+
+        hist(as.vector(mat_random_lognormal_bugbug_spikes_bugs), main=paste("Final: Bug-Bug Spiked matrix d=",iDataset,sep=""))
+        dev.off()
+
+        fAddBasisParameters = TRUE
       }
     }
   }
