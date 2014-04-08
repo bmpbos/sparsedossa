@@ -433,6 +433,14 @@ pArgs
     vdPercentZero = lsInitialDistribution[["PercentZero"]]
     vdExp = lsInitialDistribution[["exp"]]
 
+    mtrxDistributionParameters = matrix(NA, nrow=5, ncol=1)
+    mtrxDistributionParameters[1,1] = paste(c_strSyntheticMicrobiome, c_strDistributionParameters, sep="")
+    mtrxDistributionParameters[2,1] = paste(c_strMuVector, toString( round( vdMu, 2 ) ))
+    mtrxDistributionParameters[3,1] = paste(c_strSDVector, toString( round( vdSD, 2 ) ))
+    mtrxDistributionParameters[4,1] = paste(c_strPercentZeroVector, toString( round( vdPercentZero, 2 ) ))
+    mtrxDistributionParameters[5,1] = paste(c_strExpVector, toString( round( vdExp, 2 ) ))
+    vParametersAssociations = c( vParametersAssociations,  mtrxDistributionParameters)
+
 
     # Get the indices for the associations
     lsAssociationIdx = func_get_corr_indices( iNumAssociations = iNumAssociations,
