@@ -14,15 +14,20 @@
 
 
 c_strBugBugAssociations = "BugToBugAssociations"
-c_strMinimumSamples = "Minimum Spiked-in Samples:"
 c_strCorrDomainBugs = "Number of bugs each correlated bug is correlated with:"
 c_strCorrDomainBugsIdx ="Indices of the bugs each correlated bug is correlated with:"
 c_strCorrRangeBugsIdx = "Indices of bugs correlated with others:"
+c_strDistributionParameters = "DistributionParameters"
+c_strExpVector = "Expected value vector (of lognormal):"
 c_strMaxCorrDomainBugs = "Maximum number of bugs with which one bug is correlated:"
+c_strMinimumSamples = "Minimum Spiked-in Samples:"
+c_strMuVector = "Mu vector (of normal):"
 c_strNoiseScaling  = "Scaling parameter for variance of noise:"
 c_strNumberDatasets = "Number of datasets generated:"
 c_strNumberOfAssociations = "Number of associations (bugs correlated with others):"
 c_strDirOfAssociations    = "Direction of associations:"
+c_strPercentZeroVector = "Percent zeros vector:"
+c_strSDVector = "SD vector (of normal):"
 
 func_get_corr_indices = function(
 ### A function to obtain the indices of the range and domain bugs
