@@ -22,7 +22,7 @@ c_strMaxCorrDomainBugs = "Maximum number of bugs with which one bug is correlate
 c_strNoiseScaling  = "Scaling parameter for variance of noise:"
 c_strNumberDatasets = "Number of datasets generated:"
 c_strNumberOfAssociations = "Number of associations (bugs correlated with others):"
-
+c_strDirOfAssociations    = "Direction of associations:"
 
 func_get_corr_indices = function(
 ### A function to obtain the indices of the range and domain bugs
@@ -116,14 +116,17 @@ dVarScale
    if(is.matrix(dfeatures.x)) {
       n.features <- nrow(dfeatures.x)
       if( length(vdSlope) < n.features ) vdSlope <- rep( vdSlope,ceiling( n.features/length( vdSlope ) ) )
-      vdfeature.y = dIntercept + apply(vdSlope[1:n.features]*dfeatures.x,2,sum) + dVarScale * sum( apply( dfeatures.x,1,var ) )
+      vdfeature.y = dIntercept + apply(vdSlope[1:n.features]*dfeatures.x,2,sum) + rnorm(nrow(dfeatures.x),0,sqrt(dVarScale * sum( apply( dfeatures.x,1,var ) )))
+      vdfeature.y[which(vdfeature.y < 0)] = 0
       vdSlopeUsed = vdSlope[1:n.features]
    } else {
-     vdfeature.y = dIntercept + vdSlope[1] * dfeatures.x + dVarScale
+     vdfeature.y = dIntercept + vdSlope[1] * dfeatures.x + rnorm(length(dfeatures.x),0,sqrt(dVarScale*var(dfeatures.x)))
      vdSlopeUsed = vdSlope[1]
+     vdfeature.y[which(vdfeature.y < 0)] = 0
    }
+   dir <- 2*as.numeric(vdSlopeUsed > 0) - 1
    return( list(vdfeature.y = vdfeature.y,
-                vdSlopeUsed = vdSlopeUsed) )
+                dir         = dir) )
 }
 
 ### Not formally tested                                                                                                                                                                                          
@@ -220,6 +223,8 @@ fVerbose = FALSE
         strIdxCorrDomainBugs = paste(strIdxCorrDomainBugs,toString(liIdxCorrDomainBugs[[k]]),sep='; ')
       }
     }
+
+    lDirAssociations = vector("list",iNumAssociations)
     ## End converting to strings                                                                                                                                                                                 
 
     ## Generate each association                                                                                                                                                                                 
@@ -238,7 +243,15 @@ fVerbose = FALSE
         plot( vdfeature.y$vdfeature.y, lAssociationParams$dfeatures.x )
       }
 
-      mtrx_final[viIdxCorrRangeBugs[i],] <- vdfeature.y$vdfeature.y
+      mtrx_final[viIdxCorrRangeBugs[i],] <- vdfeature.y$vdfeature.y 
+      lDirAssociations[[i]] = vdfeature.y$dir
+    }
+
+    strDirAssociations = toString(lDirAssociations[[1]])
+    if(length(lDirAssociations) > 1){
+        for(k in 2:length(lDirAssociations)){
+            strDirAssociations = paste(strDirAssociations,toString(lDirAssociations[[k]]),sep="; ")
+        }
     }
     ## End generating associations                                                                                                                                                                               
 
@@ -246,10 +259,12 @@ fVerbose = FALSE
     viNumberCorrDomainBugs = NA
     viIdxCorrRangeBugs     = NA
     liIdxCorrDomainBugs    = NA
+    lDirAssociations       = NA
 
     strNumberCorrDomainBugs = "NA"
     strIdxCorrRangeBugs     = "NA"
     strIdxCorrDomainBugs    = "NA"
+    strDirAssociations      = "NA"
 
     mtrx_final <- mtrxData
   }
@@ -257,17 +272,18 @@ fVerbose = FALSE
   # This will hold the associations that you create and be placed in the truth file that is records association spike-ins for later assessment                                                                   
   # It starts with the name of the microbiome you are creating                                                                                                                                                   
   # Parameters of interest and then your feature associations                                                                                                                                                    
-  mtrxParameters = matrix(data=NA, nrow=9, ncol=1)
+  mtrxParameters = matrix(data=NA, nrow=10, ncol=1)
 
-  mtrxParameters[1,1] = paste(c_strSyntheticMicrobiome,   c_strBugBugAssociations, sep='')
-  mtrxParameters[2,1] = paste(c_strNumberOfFeatures,      iNumFeatures)
-  mtrxParameters[3,1] = paste(c_strNumberOfSamples,       ncol(mtrxData))
-  mtrxParameters[4,1] = paste(c_strNoiseScaling,          dVarScale )
-  mtrxParameters[5,1] = paste(c_strNumberOfAssociations,  iNumAssociations )
-  mtrxParameters[6,1] = paste(c_strMaxCorrDomainBugs,     iMaxDomainNumber )
-  mtrxParameters[7,1] = paste(c_strCorrDomainBugs,        strNumberCorrDomainBugs )
-  mtrxParameters[8,1] = paste(c_strCorrRangeBugsIdx,      strIdxCorrRangeBugs )
-  mtrxParameters[9,1] = paste(c_strCorrDomainBugsIdx,     strIdxCorrDomainBugs )
+  mtrxParameters[1,1]  = paste(c_strSyntheticMicrobiome,   c_strBugBugAssociations, sep='')
+  mtrxParameters[2,1]  = paste(c_strNumberOfFeatures,      iNumFeatures)
+  mtrxParameters[3,1]  = paste(c_strNumberOfSamples,       ncol(mtrxData))
+  mtrxParameters[4,1]  = paste(c_strNoiseScaling,          dVarScale )
+  mtrxParameters[5,1]  = paste(c_strNumberOfAssociations,  iNumAssociations )
+  mtrxParameters[6,1]  = paste(c_strMaxCorrDomainBugs,     iMaxDomainNumber )
+  mtrxParameters[7,1]  = paste(c_strCorrDomainBugs,        strNumberCorrDomainBugs )
+  mtrxParameters[8,1]  = paste(c_strCorrRangeBugsIdx,      strIdxCorrRangeBugs )
+  mtrxParameters[9,1]  = paste(c_strCorrDomainBugsIdx,     strIdxCorrDomainBugs )
+  mtrxParameters[10,1] = paste(c_strDirOfAssociations,     strDirAssociations )
 
   print("stop func_generate_bug_bug_spikes")
 
