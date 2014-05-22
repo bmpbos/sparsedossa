@@ -123,11 +123,11 @@ dVarScale
       if( length(vdSlope) < n.features )
           vdSlope <- rep( vdSlope,ceiling( n.features/length( vdSlope ) ) )
       
-      vdfeature.y <- dIntercept +\
+      vdfeature.y <- dIntercept +
                      apply(vdSlope[1:n.features]*dfeatures.x,
                            2,
                            sum
-                           ) +\
+                           ) +
                      rnorm(nrow(dfeatures.x),
                            0,
                            sqrt(dVarScale * sum( apply( dfeatures.x,1,var ) ) )
@@ -306,7 +306,3 @@ fVerbose = FALSE
   return(list( mtrxAssnParameters = mtrxParameters,
                mat_bugs           = mtrx_final))
 }
-
-# Define some necessary parameters
-funcAssociation = func_linear_association
-lAssociationParams = list(dIntercept = 0, vdSlope = 1)

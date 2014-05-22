@@ -36,6 +36,9 @@ pArgs
   int_number_features = options[[ 'number_features' ]]
   if(int_number_features<1) stop("Please provide a number of features of atleast 1")
 
+  strAssociationType = options[[ 'association_type' ]]
+  if(strAssociationType != "linear") stop("Only linear associations supported at this point.")
+
   int_number_samples = options[[ 'number_samples' ]]
   if(int_number_samples<1) stop("Please provide a number of samples of atleast 1")
 
@@ -101,6 +104,18 @@ pArgs
       stop( "Please make sure to either provide the same length of spike-in counts and spike-n strengths or provide one that is 1 value. These values will be paired in order or one will be repeated to pair with the other values." )
     }
   }
+
+  strBugBugCoef = options[[ 'bugBugCoef' ]]
+  vecBugBugCoef = as.vector(
+      sapply(
+          strsplit(strBugBugCoef,',')[[1]],
+          as.numeric
+          )
+      )
+  if( length(vecBugBugCoef)<2 ){
+      stop("Please provide both an integer and a slope value for the coefficients")
+  }
+  
   mtrxSpikeConfig = cbind( vdSpikeCount, vdSpikeStrength )
 
   fVerbose     = options[[ 'verbose' ]]
@@ -304,6 +319,16 @@ pArgs
 
   if(fRunBugBug){
 
+    # Get the association type and the coefficients
+    if( strAssociationType=="linear" ){
+        funcAssociation = func_linear_association
+    }
+    lAssociationParams = list(
+        dIntercept = vecBugBugCoef[1],
+        vdSlope     = vecBugBugCoef[-1]
+        )
+
+      
     # Get the fitted values for calibrating rlnorm
     vdExp = NA
     vdMu = NA
