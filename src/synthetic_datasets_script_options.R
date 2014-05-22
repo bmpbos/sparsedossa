@@ -17,9 +17,15 @@ library(optparse)
 option_list = list(
       make_option(
           c("-a","--variance_scale"),
-          type="double",
-          default = .01,
-          help="Tuning parameter for noise in bug-bug associations.  A non-negative value is expected."
+          type="character",
+          default = "1",
+          help=paste(
+              "Tuning parameters for noise in bug-bug associations",
+              "Non-negative values are expected",
+              "Multiple values should be comma-separated",
+              "Values will be recycled if the length doesn't match the number of associations",
+              sep=". "
+              )
           ),
       make_option(
           c("-b","--bugs_to_spike"),
@@ -207,10 +213,10 @@ option_list = list(
       make_option(
           c("-y","--association_type"),
           type="character",
-          default = "linear",
+          default = "rounded_linear",
           help=paste(
               "The type of association to generate",
-              "Linear is currently the only option",
+              "Options are 'linear' or 'rounded_linear'.",
               sep=". "
               )
           ),
