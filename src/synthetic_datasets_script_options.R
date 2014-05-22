@@ -12,6 +12,8 @@
 # (contact Timothy Tickle, ttickle@hsph.harvard.edu).
 #######################################################################################
 
+library(optparse)
+
 option_list = list(
       make_option(
           c("-a","--variance_scale"),
@@ -49,15 +51,29 @@ option_list = list(
           default=300,
           help="The number of features per sample to create. A positive integer value is expected."
           ),
-      make_option( c("-i","--spikeCount"),
-                  type = "character",
-                  default = "1",
-                  help = paste("Counts of spiked metadata used in the spike-in dataset",
-                      "These values should be comma delimited values, in the order of the spikeStrength values (if given)",
-                      "Can be one value, in this case the value will be repeated to pair with the spikeCount values (if multiple are present). Example 1,2,3",
-                      sep = ". "
-                      )
-                  ),
+      make_option(
+          c("-g","--bugBugCoef"),
+          type="character",
+          default = "0,0.5",
+          help = paste(
+              "A vector of string separated values for the association coefficients for the bug-bug associations",
+              "At least two values, an intercept and slope, must be given",
+              "Values are comma-separated",
+              "Example: 0,0.5.",
+              sep=". "
+              )
+          ),
+      make_option(
+          c("-i","--spikeCount"),
+          type = "character",
+          default = "1",
+          help = paste(
+              "Counts of spiked metadata used in the spike-in dataset",
+              "These values should be comma delimited values, in the order of the spikeStrength values (if given)",
+              "Can be one value, in this case the value will be repeated to pair with the spikeCount values (if multiple are present). Example 1,2,3",
+              sep = ". "
+              )
+          ),
       make_option(
           c("-j","--lefse_file"),
           type="character",
@@ -189,13 +205,23 @@ option_list = list(
               )
           ),
       make_option(
+          c("-y","--association_type"),
+          type="character",
+          default = "linear",
+          help=paste(
+              "The type of association to generate",
+              "Linear is currently the only option",
+              sep=". "
+              )
+          ),
+      make_option(
           c("-z","--noZeroInflate"),
           action="store_true",
           default = FALSE,
           help=paste(
               "If given, zero inflation is not used when generating a feature",
               "This is a flag, it is either included or not included in the commandline, no value needed.",
-              sep = ". ",
+              sep = ". "
               )
           ),
       make_option(
