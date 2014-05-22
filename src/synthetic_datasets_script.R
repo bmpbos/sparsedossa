@@ -37,8 +37,8 @@ pArgs
   if(int_number_features<1) stop("Please provide a number of features of atleast 1")
 
   strAssociationType = options[[ 'association_type' ]]
-  if(strAssociationType != "linear") stop("Only linear associations supported at this point.")
-
+  if(!strAssociationType %in% c("linear","rounded_linear")) stop("Only linear associations supported at this point.")
+  
   int_number_samples = options[[ 'number_samples' ]]
   if(int_number_samples<1) stop("Please provide a number of samples of atleast 1")
 
@@ -54,8 +54,14 @@ pArgs
   iNumAssociations = options[[ 'bugs_to_spike' ]]
   if(iNumAssociations<0) stop("Please provide a number of associations (bug-bug correlation) greater than or equal to 0")
 
-  dVarScale = options[[ 'variance_scale' ]]
-  if(dVarScale<0) stop("Please provide a variance scaling parameter greater than or equal to 0.")
+  strVarScale = options[[ 'variance_scale' ]]
+  vdVarScale = as.vector(
+      sapply(
+          strsplit(strVarScale,',')[[1]],
+          as.numeric
+          )
+      )
+  if(sum(vdVarScale<0)>0) stop("Please provide variance scaling parameters greater than or equal to 0.")
 
   iMaxNumberCorrDomainBugs = options[[ 'max_domain_bugs' ]]
   if(iMaxNumberCorrDomainBugs<0) stop("Please provide a maximum number of domain features greater than or equal to 0")
@@ -320,8 +326,10 @@ pArgs
   if(fRunBugBug){
 
     # Get the association type and the coefficients
-    if( strAssociationType=="linear" ){
+    if( strAssociationType =="linear" ){
         funcAssociation = func_linear_association
+    } else if (strAssociationType == "rounded_linear"){
+        funcAssociation = func_rounded_linear_association
     }
     lAssociationParams = list(
         dIntercept = vecBugBugCoef[1],
@@ -443,7 +451,7 @@ pArgs
       {
         pdf(file.path(dirname(strCountFileName), paste("BugBugSpikeIn_d_", iDataset,sep="")), useDingbats=FALSE)
         mat_random_lognormal_bugbug_spikes = func_generate_bug_bug_spikes( mtrxData            = mat_random_lognormal_bugs[["mat_basis"]],
-                                                                           dVarScale           = dVarScale,
+                                                                           vdVarScale          = vdVarScale,
                                                                            funcAssociation     = funcAssociation,
                                                                            lAssociationParams  = lAssociationParams,
                                                                            viIdxCorrRangeBugs  = viIdxCorrRangeBugs,
@@ -470,7 +478,7 @@ pArgs
 
         pdf(file.path(dirname(strCountFileName), "BugBugSpikeIn"), useDingbats=FALSE)
         mat_random_lognormal_bugbug_spikes = func_generate_bug_bug_spikes( mtrxData            = mat_random_lognormal_bugs[["mat_basis"]],
-                                                                           dVarScale           = dVarScale,
+                                                                           vdVarScale          = vdVarScale,
                                                                            funcAssociation     = funcAssociation,
                                                                            lAssociationParams  = lAssociationParams,
                                                                            viIdxCorrRangeBugs  = NULL,

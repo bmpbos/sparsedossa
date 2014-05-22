@@ -145,13 +145,53 @@ dVarScale
                 dir         = dir) )
 }
 
+func_rounded_linear_association = function(
+### A function to spike in positive linear bug-bug associations
+dfeatures.x,
+### The data for the independent features (as a matrix; rows are features)
+dIntercept,
+### The intercept parameter for the relationship
+vdSlope,
+### The slope parameter(s) for the relationship, as a vector
+### Elements are recycled if there are fewer than 1 per feature
+dVarScale
+### The scaling parameter for the variance
+){
+   if(is.matrix(dfeatures.x)) {
+      n.features <- nrow(dfeatures.x)
+      if( length(vdSlope) < n.features ){
+          vdSlope <- rep( vdSlope,ceiling( n.features/length( vdSlope ) ) )
+      }
+      vdfeature.y <- dIntercept +
+                     apply(vdSlope[1:n.features]*dfeatures.x,
+                           2,
+                           sum
+                           ) +
+                     rnorm(nrow(dfeatures.x),
+                           0,
+                           sqrt(dVarScale * sum( apply( dfeatures.x,1,var ) ) )
+                           )
+      vdfeature.y[which(vdfeature.y < 0)] = 0
+      vdSlopeUsed <- vdSlope[1:n.features]
+   } else {
+     vdfeature.y <- dIntercept + vdSlope[1] * dfeatures.x + rnorm(length(dfeatures.x),0,sqrt(dVarScale*var(dfeatures.x)))
+     vdSlopeUsed <- vdSlope[1]
+     vdfeature.y[which(vdfeature.y < 0)] = 0
+   }
+   vdfeature.y.rounded <- round(vdfeature.y)
+   dir <- 2*as.numeric(vdSlopeUsed > 0) - 1
+   
+   return( list(vdfeature.y = vdfeature.y.rounded,
+                dir         = dir) )
+}
+
 ### Not formally tested                                                                                                                                                                                          
 func_generate_bug_bug_spikes = function(
 ### Add spiked bug-bug correlations
 mtrxData,
 ### The matrix into which to spike the associations
-dVarScale,
-### The scaling parameter for the VARIANCE (the noise added will have variance dVarScale*var(bug))
+vdVarScale,
+### The scaling parameters for the VARIANCE (the noise added will have variance dVarScale*var(bug))
 funcAssociation,
 ### The function to be used to generate the association; takes two bugs and the variance scaling parameter
 lAssociationParams,
@@ -177,7 +217,6 @@ fVerbose = FALSE
   iNumFeatures               <- nrow( mtrxData )
   viNumberCorrDomainBugs     <- unlist( lapply( liIdxCorrDomainBugs, "length" ) )
 
-  lAssociationParams$dVarScale <- dVarScale
 
   # Some generic error reporting                                                                                                                                                                                 
   strWarning = "No correlation was added to the bug-bug correlation matrix."
@@ -205,8 +244,8 @@ fVerbose = FALSE
     print(paste( "Some number of domain bugs", min(viNumberCorrDomainBugs), "is not possible.", strWarning ))
     iNumAssociations = 0
   }
-  if( dVarScale < 0 ){
-    paste( "The variance scale parameter,",dVarScale,", is < 0. ", strWarning, sep="" )
+  if( sum(vdVarScale < 0)>0 ){
+    paste( "Some of the variance scale parameters,",toString(vdVarScale),", are < 0. ", strWarning, sep="" )
     iNumAssociations = 0
   }
   if( iNumAssociations > floor(iNumFeatures/2) ){
@@ -240,23 +279,69 @@ fVerbose = FALSE
       }
     }
 
+    strVarScale = paste(vdVarScale[1])
+    if(length(vdVarScale)>1){
+        for(k in 2:length(vdVarScale)){
+            strVarScale = paste(strVarScale,vdVarScale[k],sep="; ")
+        }
+    }
+
     lDirAssociations = vector("list",iNumAssociations)
     ## End converting to strings                                                                                                                                                                                 
 
-    ## Generate each association                                                                                                                                                                                 
+    ## Generate each association
+    if(length(vdVarScale) < iNumAssociations){
+        vdVarScale <- rep(vdVarScale,ceiling( iNumAssociations/length(vdVarScale) ))
+    }
     mtrx_final <- mtrxData
-    for(i in seq(1,iNumAssociations)){
 
+    for(i in seq(1,iNumAssociations)){
+        
+      lAssociationParams$dVarScale     <- vdVarScale[i]
       lAssociationParams$dfeatures.x   <- mtrxData[ liIdxCorrDomainBugs[[ i ]], ]
       vdfeature.y                      <- do.call( what = funcAssociation,
                                                    args = lAssociationParams )
 
       if( is.matrix(lAssociationParams$dfeatures.x) ){
         for(k in 1:nrow(lAssociationParams$dfeatures.x)){
-          plot( vdfeature.y$vdfeature.y, lAssociationParams$dfeatures.x[k,] )
+          plot(
+              vdfeature.y$vdfeature.y,
+              lAssociationParams$dfeatures.x[k,],
+              main = paste(
+                  "Association of features",
+                  viIdxCorrRangeBugs[i],
+                  "and",
+                  liIdxCorrDomainBugs[[i]][k]
+                  ),
+              ylab = paste(
+                  "Feature",
+                  viIdxCorrRangeBugs[i]
+                  ),
+              xlab = paste(
+                  "Feature",
+                  liIdxCorrDomainBugs[[i]][k]
+                  )
+              )
         }
       } else {
-        plot( vdfeature.y$vdfeature.y, lAssociationParams$dfeatures.x )
+        plot(
+            vdfeature.y$vdfeature.y,
+            lAssociationParams$dfeatures.x,
+            main = paste(
+                "Association of features",
+                viIdxCorrRangeBugs[i],
+                "and",
+                liIdxCorrDomainBugs[[i]]
+                ),
+            ylab = paste(
+                "Feature",
+                viIdxCorrRangeBugs[[i]]
+                ),
+            xlab = paste(
+                "Feature",
+                liIdxCorrDomainBugs[[i]]
+                )
+            )
       }
 
       mtrx_final[viIdxCorrRangeBugs[i],] <- vdfeature.y$vdfeature.y 
@@ -293,7 +378,7 @@ fVerbose = FALSE
   mtrxParameters[1,1]  = paste(c_strSyntheticMicrobiome,   c_strBugBugAssociations, sep='')
   mtrxParameters[2,1]  = paste(c_strNumberOfFeatures,      iNumFeatures)
   mtrxParameters[3,1]  = paste(c_strNumberOfSamples,       ncol(mtrxData))
-  mtrxParameters[4,1]  = paste(c_strNoiseScaling,          dVarScale )
+  mtrxParameters[4,1]  = paste(c_strNoiseScaling,          strVarScale )
   mtrxParameters[5,1]  = paste(c_strNumberOfAssociations,  iNumAssociations )
   mtrxParameters[6,1]  = paste(c_strMaxCorrDomainBugs,     iMaxDomainNumber )
   mtrxParameters[7,1]  = paste(c_strCorrDomainBugs,        strNumberCorrDomainBugs )
