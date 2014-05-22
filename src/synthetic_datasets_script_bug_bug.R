@@ -120,16 +120,27 @@ dVarScale
 ){
    if(is.matrix(dfeatures.x)) {
       n.features <- nrow(dfeatures.x)
-      if( length(vdSlope) < n.features ) vdSlope <- rep( vdSlope,ceiling( n.features/length( vdSlope ) ) )
-      vdfeature.y = dIntercept + apply(vdSlope[1:n.features]*dfeatures.x,2,sum) + rnorm(nrow(dfeatures.x),0,sqrt(dVarScale * sum( apply( dfeatures.x,1,var ) )))
+      if( length(vdSlope) < n.features )
+          vdSlope <- rep( vdSlope,ceiling( n.features/length( vdSlope ) ) )
+      
+      vdfeature.y <- dIntercept +\
+                     apply(vdSlope[1:n.features]*dfeatures.x,
+                           2,
+                           sum
+                           ) +\
+                     rnorm(nrow(dfeatures.x),
+                           0,
+                           sqrt(dVarScale * sum( apply( dfeatures.x,1,var ) ) )
+                           )
       vdfeature.y[which(vdfeature.y < 0)] = 0
-      vdSlopeUsed = vdSlope[1:n.features]
+      vdSlopeUsed <- vdSlope[1:n.features]
    } else {
-     vdfeature.y = dIntercept + vdSlope[1] * dfeatures.x + rnorm(length(dfeatures.x),0,sqrt(dVarScale*var(dfeatures.x)))
-     vdSlopeUsed = vdSlope[1]
+     vdfeature.y <- dIntercept + vdSlope[1] * dfeatures.x + rnorm(length(dfeatures.x),0,sqrt(dVarScale*var(dfeatures.x)))
+     vdSlopeUsed <- vdSlope[1]
      vdfeature.y[which(vdfeature.y < 0)] = 0
    }
    dir <- 2*as.numeric(vdSlopeUsed > 0) - 1
+   
    return( list(vdfeature.y = vdfeature.y,
                 dir         = dir) )
 }
