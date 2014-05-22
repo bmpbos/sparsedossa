@@ -213,7 +213,7 @@ option_list = list(
       make_option(
           c("-y","--association_type"),
           type="character",
-          default = "rounded_linear",
+          default = "linear",
           help=paste(
               "The type of association to generate",
               "Options are 'linear' or 'rounded_linear'.",
