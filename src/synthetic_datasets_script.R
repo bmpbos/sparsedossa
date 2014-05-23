@@ -28,7 +28,8 @@ c_strFeatureOutlier = "cyan"
 # Control flow constants
 iLoopingControlIncrement = 1000
 ### Max number of looping in looping functions
-c_iCountTypesOfMetadata = 4
+# modified by bor to generate only binary data
+c_iCountTypesOfMetadata = 1
 ### There are 4 types of metadata supported in metadata generation
 c_fIgnoreZerosInOutliers = TRUE
 ### Will not allow zeros to be used as the min value in swapping unless they are needed to fulfill the number of
@@ -39,7 +40,7 @@ c_dRunifMax = .99
 c_dMinBinary = .3
 c_dMaxBinary = .7
 ### Min and max probabilities for binary metadata levels
-c_iTimesSDIsOutlier = 4
+c_iTimesSDIsOutlier = 10
 ### The number of deviations until a value is truncated as an outlier
 c_dALittleMoreThanZero = 0.00001
 
@@ -92,10 +93,11 @@ c_fPrintLognormalMatrix = FALSE
 c_dSDBeta = 0.1251
 c_dSDIntercept = 1.121
 ### The estimate for the relationship between SD and exp
-c_dBetaZero = -0.05603027
-c_dBeta2Zero = -0.0111924
-c_dInterceptZero = 0.9073969
+c_dBetaZero = -0.6197338
+#c_dBeta2Zero = -0.0111924
+c_dInterceptZero = 2.3536094
 ### The estimate for the relationship between exp and zero percent
+### modified by bor to logistic regression results on the IBD study
 c_dBetaGrandSD = 0.04982219
 ### The estimate for the relationship between the mu of mus (of feature distributions) and the SD of mus (of feature distributions)
 
@@ -235,6 +237,9 @@ fVerbose = FALSE
 
     # Remove zeros from data
     vdCur = vdCur[ which( vdCur != 0 ) ]
+	
+	#Measure expectation of the feature without zeros
+	#vdExp = c( vdExp, mean( vdCur ) )
     
     #### Note
     #### rlnorm needs a mean and sd from a logged rlnorm distribution which would match this
@@ -257,23 +262,22 @@ fVerbose = FALSE
   # This is both values logged as SD is based on vdLogCur
   vdExpLog = log( vdExp )
 
-  lmod = lm( vdLogSD ~ vdExpLog ) 
+  lmod = lm( vdLogSD ~ vdExpLog )
   dBetaSD = coef( lmod )[ "vdExpLog" ]
   dInterceptSD = coef(lmod)[ "(Intercept)" ]
 
   #### Percent Zero and Exp
   ### Estimated with a polynomial to the second degree
-  dBeta2Zero = NA
+  #dBeta2Zero = NA
   dBetaZero = NA
   dInterceptZero = NA
   if( sum( vdPercentZero ) > 0 ){
-    # Fit with polynomial regression (degree 2)
-    lmodPoly = lm( vdPercentZero ~ poly( vdExpLog, 2, raw=T ) )
-    dBeta2Zero = coef( lmodPoly )[ "poly(vdExpLog, 2, raw = T)2" ]
-    dBetaZero = coef( lmodPoly )[ "poly(vdExpLog, 2, raw = T)1" ]
-    dInterceptZero = coef( lmodPoly )[ "(Intercept)" ]
+    # Fit with logisitic regression
+    # modified by bor
+    lmodGlm = glm( vdPercentZero ~ vdExpLog, family = binomial )
+    dInterceptZero = lmodGlm$coefficients[1]
+    dBetaZero = lmodGlm$coefficients[2]
   }
-
   if( fVerbose ){
     # Indicate the relationships found
     print("The following relationships were found.")
@@ -283,7 +287,7 @@ fVerbose = FALSE
     print("Log Exp (with zeros) vs Log SD (without zeros):")
     print(paste("Intercept=", dInterceptSD, ", Beta=", dBetaSD))
     print("Log Exp (with zeros) vs Percent Zeros:")
-    print(paste(paste("Intercept=", dInterceptZero, ", Beta(degree1)=", dBetaZero,", Beta (degree2)=", dBeta2Zero)))
+    print(paste("Intercept=", dInterceptZero, ", Beta=", dBetaZero, sep=""))
 
     # Initial description of calibration data set
     barplot( ldReadDepths, main = paste( "Read depth of Template Microbiome, Average", mean( ldReadDepths ) ) )
@@ -300,11 +304,11 @@ fVerbose = FALSE
 
     # Percent zero
     if( !is.na( dBetaZero ) ){
-      print(c(dBeta2Zero, dBetaZero,dInterceptZero))
+      print(c(dBetaZero,dInterceptZero))
       plot( vdExpLog, vdPercentZero, main = "Estimating Percent Zero" )
-      points( x = vdExpLog, y = funcEstimatePercentZero( vdExpLog, dBetaZero, dBeta2Zero, dInterceptZero ), col = 'violet' ) 
-      plot( vdExpLog, vdPercentZero, main = "Estimating Percent Zero no intercept" )
-      points( x = vdExpLog, y = funcEstimatePercentZero( vdExpLog, dBetaZero, dBeta2Zero, 0 ), col = 'violet' ) 
+      points( x = vdExpLog, y = funcEstimatePercentZero( vdExpLog, dBetaZero, dInterceptZero ), col = 'violet' ) 
+      #plot( vdExpLog, vdPercentZero, main = "Estimating Percent Zero no intercept" )
+      #points( x = vdExpLog, y = funcEstimatePercentZero( vdExpLog, dBetaZero, dBeta2Zero, 0 ), col = 'violet' ) 
     }
   }
 
@@ -352,25 +356,26 @@ dBetaGrandSD
 
 
 # 6 Tests 10/22/2013
+# Change to logistic regression method
+# modified by bor
 funcEstimatePercentZero = function(
 ### Estimate the percent zero given the logged expectation and parameters modeling the relationship between the log Exp and the percent zero
 vdExpLog,
 ### The measured mean of feature values
 dBetaZero,
 ### The beta for the relationship between the logged exp and the percent zero (for degree 1)
-dBeta2Zero,
+# No need to use this as now using logisitic regression
+# dBeta2Zero,
 ### The beta for the relationship between the logged exp and the percent zero (for degree 2)
-dInterceptZero = 0,
-### The intercept for the polynomial relationship
+dInterceptZero,
+### The intercept for the polynomial relationship, must have a value
 dScale = 1
 ### A scale for the percent zero after being generated by the relationship with exp log.
 ){
   print("***Scale***")
   print(dScale)
-  vdScales = ( dInterceptZero  + ( vdExpLog * dBetaZero ) + ( vdExpLog^2 * dBeta2Zero ) ) * dScale
-  vdScales = sapply( vdScales, function(x) min( x, 1 ) )
-  return( sapply( vdScales, function(x) max( x, 0 ) ) )
-  ### Returns the Percent Zero (between 0 and 1) for a feature
+  vdScales = exp( dInterceptZero  + ( vdExpLog * dBetaZero ) )/( 1 + exp( dInterceptZero  + ( vdExpLog * dBetaZero ) ) ) * dScale
+  return( vdScales )
 }
 
 
@@ -712,13 +717,13 @@ fVerbose = FALSE
 ### Controls the plotting of graphic pdf logging (Default FALSE, TRUE indicates logging occurs)
 ){
   print("start funcGenerateFeatureParameters")
-
-  if(fVerbose & !is.na(vdExp))
+  # if all vdExp are NAs, not print
+  if(fVerbose & ! all(is.na(vdExp)))
   {
     hist(vdExp,main="funcGenerateFeatureParameters: Original data expectation")
   }
 
-  if(is.na(vdExp))
+  if(all(is.na(vdExp)))
   {
     print("funcGenerateFeatureParameters: Generating vdExp Vector.")
 
@@ -759,7 +764,8 @@ fVerbose = FALSE
   # Make sure there are no zeros in the expectation vector
   vdExp[ which( vdExp == 0 ) ] = c_dALittleMoreThanZero
 
-  if(is.na(vdSD))
+  #modified by bor
+  if(all(is.na(vdSD)))
   {
     # Generate vector of SD based on mu since it is not known
     print("funcGenerateFeatureParameters: Generating vdSD Vector.")
@@ -787,20 +793,20 @@ fVerbose = FALSE
       plot(vdVisExp, vdVisSD, main="Generated Relationship of Exp and SD", col="orange")
     }
   }
-
-  if(is.na(vdMu))
+  #modified by bor
+  if(all(is.na(vdMu)))
   {
     print("funcGenerateFeatureParameters: Generating vdMu Vector.")
     # We know the vdExp for each sample
     # We know the SD for each sample
     vdMu = sapply(1:length(vdExp), function(x) funcGetMu(vdExp[x],vdSD[x]))
   }
-
-  if(is.na(vdPercentZero))
+  #modified by bor
+  if(all(is.na(vdPercentZero)))
   {
     # Generate vector of percent zero based on exp since it is not known
     print("funcGenerateFeatureParameters: Generating vdPercentZero Vector.")
-    vdPercentZero = funcEstimatePercentZero( log(vdExp), lPercentZeroRel$BetaZero, lPercentZeroRel$Beta2Zero, lPercentZeroRel$InterceptZero, lPercentZeroRel$Scale ) 
+    vdPercentZero = funcEstimatePercentZero( log(vdExp), lPercentZeroRel$BetaZero, lPercentZeroRel$InterceptZero, lPercentZeroRel$Scale ) 
     print("***vdPercentZero***")
     print(summary(vdPercentZero))
     viLessThanZero = which(vdPercentZero < 0)
@@ -847,26 +853,26 @@ dMinLevelPercent
 
   # Continous metadata, generated means
   # Generating and padding the list of potential mean values
-  li_mean_value_list = list(runif(1, c_dRunifMin, c_dRunifMax),1,100)
-  if(length(li_mean_value_list) < (int_base_metadata_number*2))
-  {
-    for (k in (length(li_mean_value_list)+1):(int_base_metadata_number*2))
-    {
-      li_mean_value_list = c(li_mean_value_list,runif(1, c_dRunifMin, c_dRunifMax))
-    }
-  } else {
-    li_mean_value_list = li_mean_value_list[1:(int_base_metadata_number*2)]
-  }
+  # li_mean_value_list = list(runif(1, c_dRunifMin, c_dRunifMax),1,100)
+  # if(length(li_mean_value_list) < (int_base_metadata_number*2))
+  # {
+    # for (k in (length(li_mean_value_list)+1):(int_base_metadata_number*2))
+    # {
+      # li_mean_value_list = c(li_mean_value_list,runif(1, c_dRunifMin, c_dRunifMax))
+    # }
+  # } else {
+    # li_mean_value_list = li_mean_value_list[1:(int_base_metadata_number*2)]
+  # }
 	
-  # generating the continuous metadata
-  # Should be random normal (is not bugs)
+  # # generating the continuous metadata
+  # # Should be random normal (is not bugs)
   i = 1
-  for (mean_value in li_mean_value_list)
-  {
-    mat_metadata[i,] = rnorm(int_number_samples,mean=mean_value,sd=mean_value/5)
-    mtrxParameters = c(mtrxParameters, paste(c_strMetadata, i, " ", c_strContinuous, sep =""))
-    i = i+1
-  }
+  # for (mean_value in li_mean_value_list)
+  # {
+    # mat_metadata[i,] = rnorm(int_number_samples,mean=mean_value,sd=mean_value/5)
+    # mtrxParameters = c(mtrxParameters, paste(c_strMetadata, i, " ", c_strContinuous, sep =""))
+    # i = i+1
+  # }
 	
   # generating the binary variables
   # Set up what the distributions for the different binary metadata will be
@@ -922,44 +928,44 @@ dMinLevelPercent
     i = i+1
   }
 
-  # generating the quarternary metadata with simple distributions and at least one uniform
-  # names of the feature choices
-  li_list_of_distributions = list(uniform=c(.25,.25,.25,.25), c(.2,.2,.3,.3), c(.3,.3,.2,.2), c(.2,.2,.2,.4))
-  if(length(li_list_of_distributions) < int_base_metadata_number)
-  {
-    for (k in (length(li_list_of_distributions)+1):int_base_metadata_number)
-    {
-      li_list_of_distributions = c(li_list_of_distributions, list(c(.25,.25,.25,.25)))
-    }
-  } else {
-    li_list_of_distributions = li_list_of_distributions[1:int_base_metadata_number]
-  }
+  # # generating the quarternary metadata with simple distributions and at least one uniform
+  # # names of the feature choices
+  # li_list_of_distributions = list(uniform=c(.25,.25,.25,.25), c(.2,.2,.3,.3), c(.3,.3,.2,.2), c(.2,.2,.2,.4))
+  # if(length(li_list_of_distributions) < int_base_metadata_number)
+  # {
+    # for (k in (length(li_list_of_distributions)+1):int_base_metadata_number)
+    # {
+      # li_list_of_distributions = c(li_list_of_distributions, list(c(.25,.25,.25,.25)))
+    # }
+  # } else {
+    # li_list_of_distributions = li_list_of_distributions[1:int_base_metadata_number]
+  # }
 		
-  # handpicked n-nomial distributions (metadata values)
-  quarternary_names = c(1,2,3,4)
+  # # handpicked n-nomial distributions (metadata values)
+  # quarternary_names = c(1,2,3,4)
 
-  for (distribution in li_list_of_distributions)
-  {
-    vsCurMetadata = funcSample( quarternary_names, size=int_number_samples, prob=distribution, replace = TRUE)
-    fMetadataFailed = !funcIsFactorMetadataValid(vsCurMetadata, iMinLevelQuarterneryCount)
-    iBinaryMetadataLoop = 1
-    while(fMetadataFailed)
-    {
-      vsCurMetadata = funcSample( quarternary_names, size=int_number_samples, prob=distribution, replace = TRUE)
-      fMetadataFailed = !funcIsFactorMetadataValid(vsCurMetadata, iMinLevelQuarterneryCount)
-      iBinaryMetadataLoop = iBinaryMetadataLoop + 1
-      if(iBinaryMetadataLoop > iLoopingControlIncrement)
-      {
-        fMetadataFailed = FALSE
-        #print(paste("Suboptional metadata was created, did not pass quality control, is too imbalanced. Minimum level is preferred to be ", iMinLevelQuarterneryCount,"."))
-        #print(vcCurMetadata)
-      }
-    }
-    mat_metadata[i,] = vsCurMetadata
+  # for (distribution in li_list_of_distributions)
+  # {
+    # vsCurMetadata = funcSample( quarternary_names, size=int_number_samples, prob=distribution, replace = TRUE)
+    # fMetadataFailed = !funcIsFactorMetadataValid(vsCurMetadata, iMinLevelQuarterneryCount)
+    # iBinaryMetadataLoop = 1
+    # while(fMetadataFailed)
+    # {
+      # vsCurMetadata = funcSample( quarternary_names, size=int_number_samples, prob=distribution, replace = TRUE)
+      # fMetadataFailed = !funcIsFactorMetadataValid(vsCurMetadata, iMinLevelQuarterneryCount)
+      # iBinaryMetadataLoop = iBinaryMetadataLoop + 1
+      # if(iBinaryMetadataLoop > iLoopingControlIncrement)
+      # {
+        # fMetadataFailed = FALSE
+        # #print(paste("Suboptional metadata was created, did not pass quality control, is too imbalanced. Minimum level is preferred to be ", iMinLevelQuarterneryCount,"."))
+        # #print(vcCurMetadata)
+      # }
+    # }
+    # mat_metadata[i,] = vsCurMetadata
 
-    mtrxParameters = c(mtrxParameters, paste(c_strMetadata, i, " ", c_strFactor, " ", paste(levels(as.factor(mat_metadata[i,])), collapse = " "), sep=""))
-    i = i+1
-  }
+    # mtrxParameters = c(mtrxParameters, paste(c_strMetadata, i, " ", c_strFactor, " ", paste(levels(as.factor(mat_metadata[i,])), collapse = " "), sep=""))
+    # i = i+1
+  # }
   return(list(mat_metadata=mat_metadata, mtrxParameters=mtrxParameters))
 }
 
@@ -1030,6 +1036,7 @@ fVerbose = FALSE
 
   # Make features and assign feature samples to samples giving higher counts to lower read depth samples.
   print("func_generate_random_lognormal_matrix: START Making features")
+  write.table( vdExp, "inspection.txt", row.names=F, col.names=F )
   for(iReset in 1:int_number_features)
   {
     # Create new feature
@@ -1648,7 +1655,7 @@ fVerbose = FALSE
 
   # Expectation of the feature
   dExpCal = funcGetExp(dMu,dSD)
-
+  
   # Generate feature
   dFeature = func_zero_inflate(log(dMu), dPercentZero, iNumberSamples, log(dSD), dTruncateThreshold)
 
@@ -2037,7 +2044,7 @@ iTargetReadDepth
   }
 
   # Undo last move
-  if( ! is.na( viMinSample ) )
+  if( ! all(is.na( viMinSample )) )
   {
     iHold = mtrxData[ viMaxFeature, viMaxSample ]
     mtrxData[ viMaxFeature, viMaxSample ] = mtrxData[ viMaxFeature, viMinSample ]
@@ -2115,6 +2122,7 @@ fZeroInflated = TRUE
 
 
 ### 6 Tests 10-22-2013
+### Modified by bor
 funcTruncatedRLNorm = function(
 ### Return draws from a random log normal distribution with a truncated tail so outliers are not introduced.
 iNumberMeasurements,
@@ -2126,31 +2134,39 @@ dLogSD,
 iThreshold = NA
 ### The value used to define outliers. 
 ){
-  # Get a feature from a lognormal distribution
-  vdFeature = rlnorm( iNumberMeasurements, dLogMean, dLogSD )
+  # Get truncated normal distribution
+  vdFeature = c()
+  for( i in 1:iNumberMeasurements ){
+    dFeature = rlnorm( 1, dLogMean, dLogSD )
+    while( dFeature > iThreshold ){
+      dFeature = rlnorm( 1, dLogMean, dLogSD )
+    }
+    vdFeature = c( vdFeature, dFeature )
+  }
+  #vdFeature = rlnorm( iNumberMeasurements, dLogMean, dLogSD )
 
   # If a value is given to truncate outliers
-  if( !is.na( iThreshold ) )
-  {
-    viOutliers = which( vdFeature > iThreshold )
+  #if( !is.na( iThreshold ) )
+  #{
+  #  viOutliers = which( vdFeature > iThreshold )
 
     # If there are outliers
     # Change the outliers to the mean of the draws before it is drawn (indices less than it's own)
-    if( length( viOutliers ) )
-    {
-      for( iIndex in viOutliers )
-      {
-        # Indices of measurements before the outlier
-        viToMean = 1:( iIndex - 1 )
-        # If the first value was an outlier then use the means of all the non outlier measurements
-        if(iIndex-1 == 0){ viToMean = setdiff( 1:length( vdFeature ), viOutliers ) }
-        # Sample two measurments and take the mean, replace the outlier with this mean
-        vdFeature[ iIndex ] = mean( vdFeature[ funcSample( viToMean, 2, replace = TRUE ) ] )
-      }
-    }
-  }
+    #if( length( vioutliers ) )
+    #{
+    #  for( iindex in vioutliers )
+    #  {
+    #    # indices of measurements before the outlier
+    #    vitomean = 1:( iindex - 1 )
+        # if the first value was an outlier then use the means of all the non outlier measurements
+    #    if(iindex-1 == 0){ vitomean = setdiff( 1:length( vdfeature ), vioutliers ) }
+        # sample two measurments and take the mean, replace the outlier with this mean
+    #    vdfeature[ iindex ] = mean( vdfeature[ funcsample( vitomean, 2, replace = true ) ] )
+    #  }
+    #}
+  #}
   #Truncate negatives to zero
-  vdFeature[ vdFeature < 0 ] = 0
+  #vdFeature[ vdFeature < 0 ] = 0
 
   return( vdFeature )
 ### vdFeature: The signal (optionally truncated, log normal distribution)
@@ -2168,11 +2184,10 @@ dExp
   # If the expectation is less than 1 we can get features that are all zero
   # especially after rounding a not zero-inflated matrix
   # So here a control is put in to make sure the expectation is no less than 1
-  if( dExp < 1 ){ dExp = 1 }
+  #if( dExp < 1 ){ dExp = 1 }
 
   # Used to ignore zeros in these calculations
   vdUpdateIndices = which( vdFeatures > 0 )
-
   # Get the amount of change in signal needed
   dDifference = dExp - mean( vdFeatures )
 
@@ -2180,7 +2195,8 @@ dExp
   if( abs( dDifference ) > 0 )
   {
     # Number of counts to shift
-    dCounts = abs( floor( dDifference * length( vdFeatures ) ) )
+	# Modified by bor
+    dCounts = ceiling( abs( dDifference * length( vdFeatures ) ) )
     # Add to the distributio and shift it up
     if(dDifference > 0)
     {
@@ -2278,8 +2294,15 @@ iThreshold = NA
   vdFeature = funcTruncatedRLNorm( int_number_samples, dLogMean, dLogSD, iThreshold = iThreshold )
 
   # Zero inlate
-  viZeroLocations = funcSample( 1:int_number_samples, floor( int_number_samples * dPercentZeroInflated ), replace = FALSE )
-  if( length( viZeroLocations ) ){ vdFeature[ viZeroLocations ] = 0 }
+  # modified by bor
+  viZeroLocations = as.logical( rbinom( int_number_samples, 1, dPercentZeroInflated ) )
+  vdFeature[viZeroLocations] = 0
+  
+  if( sum( vdFeature ) == 0 ){
+    vdFeature[sample(1:length(vdFeature),1)] = 1
+  }
+  #viZeroLocations = funcSample( 1:int_number_samples, floor( int_number_samples * dPercentZeroInflated ), replace = FALSE )
+  #if( length( viZeroLocations ) ){ vdFeature[ viZeroLocations ] = 0 }
 
   # Return zero-inflated truncated lognormal feature
   return( vdFeature )
@@ -2303,10 +2326,10 @@ option_list = list(
   make_option(c("-p","--number_metadata"), type="integer", default=5, dest='number_metadata',help="Indicates how many metadata are created. number_metadata*2 = number continuous metadata, number_metadata = number binary metadata, number_metadata = number quaternary metadata. A positive integer greater than 0 is expected."),
   make_option(c("-s","--seed"), type="integer", default=NA, help="A seed to freeze the random generation of counts/relative abundance. If left as default (NA), generation is random. If seeded, data generation will be random within a run but identical if ran again under the same settings. An integer is expected."),
   make_option(c("-t","--percent_outlier_spikins"), type="double", default=.05, help="The percent of samples to spike in outliers. A real number between 0 to 1 is expected."),
-  make_option(c("-u","--minOccurence"), type="integer", default=4, help="Minimum counts a bug can have for the ocurrence quality control filter used when creating bugs. ( Filtering minimum number of counts in a minimum number of samples). A positive integer is expected."),
+  make_option(c("-u","--minOccurence"), type="integer", default=0, help="Minimum counts a bug can have for the ocurrence quality control filter used when creating bugs. ( Filtering minimum number of counts in a minimum number of samples). A positive integer is expected."),
   make_option(c("-v","--verbose"), action="store_false", default = TRUE, help="If True logging and plotting is made by the underlying methodology. This is a flag, it is either included or not included in the commandline, no value needed."),
-  make_option(c("-w","--minSample"), type="integer", default=4, help="Minimum samples a bug can be in for the ocurrence quality control filter used when creating bugs. ( Filtering minimum number of counts in a minimum number of samples). A positive integer is expected."),
-  make_option(c("-x","--scalePercentZeros"), type="double", default=2, help="A scale used to multiply the percent zeros of all features across the sample after it is derived from the relatiohships with it and the feature abundance or calibration file. Requires a number greater than 0. A number greater than 1 increases sparsity, a number less than 1 decreases sparsity. O removes sparsity, 1 (default) does not change the value and the value."),
+  make_option(c("-w","--minSample"), type="integer", default=0, help="Minimum samples a bug can be in for the ocurrence quality control filter used when creating bugs. ( Filtering minimum number of counts in a minimum number of samples). A positive integer is expected."),
+  make_option(c("-x","--scalePercentZeros"), type="double", default=1, help="A scale used to multiply the percent zeros of all features across the sample after it is derived from the relatiohships with it and the feature abundance or calibration file. Requires a number greater than 0. A number greater than 1 increases sparsity, a number less than 1 decreases sparsity. O removes sparsity, 1 (default) does not change the value and the value."),
   make_option(c("-z","--noZeroInflate"), action="store_true", default = FALSE, help="If given, zero inflation is not used when generating a feature. This is a flag, it is either included or not included in the commandline, no value needed.")
 )
 
@@ -2314,6 +2337,7 @@ option_list = list(
 main = function(
 pArgs
 ){
+  options(warn=1)
   lxArgs = parse_args(pArgs,positional_arguments = TRUE)
   print("lxArgs")
   print(lxArgs)
@@ -2438,7 +2462,7 @@ pArgs
   print("Parameters AFTER Calibration File (if no calibration file is used, defaults are shown)")
   print(paste("Length exp",length(vdExp),"Length vdMu", length(vdMu), "length vdSD", length(vdSD), "length vdPercentZero", length(vdPercentZero), "Read depth", iReadDepth, "Feature Count", int_number_features))
 
-  mat_random_lognormal_bugs = func_generate_random_lognormal_matrix(int_number_features=int_number_features, int_number_samples=int_number_samples, iMinNumberCounts=dMinOccurenceCount, iMinNumberSamples=dMinOccurenceSample, iReadDepth=iReadDepth, vdExp=vdExp, vdMu=vdMu, vdPercentZero=vdPercentZero, vdSD=vdSD, fZeroInflate=fZeroInflate, lSDRel=list(BetaSD=c_dSDBeta, InterceptSD=c_dSDIntercept), lPercentZeroRel = list(InterceptZero=c_dInterceptZero, BetaZero=c_dBetaZero, Beta2Zero=c_dBeta2Zero, Scale=options[[ 'scalePercentZeros' ]]), dBetaGrandSD=c_dBetaGrandSD, fVerbose=fVerbose)
+  mat_random_lognormal_bugs = func_generate_random_lognormal_matrix(int_number_features=int_number_features, int_number_samples=int_number_samples, iMinNumberCounts=dMinOccurenceCount, iMinNumberSamples=dMinOccurenceSample, iReadDepth=iReadDepth, vdExp=vdExp, vdMu=vdMu, vdPercentZero=vdPercentZero, vdSD=vdSD, fZeroInflate=fZeroInflate, lSDRel=list(BetaSD=c_dSDBeta, InterceptSD=c_dSDIntercept), lPercentZeroRel = list(InterceptZero=c_dInterceptZero, BetaZero=c_dBetaZero, Scale=options[[ 'scalePercentZeros' ]]), dBetaGrandSD=c_dBetaGrandSD, fVerbose=fVerbose)
 
   lefse_lognormal = NULL
   if(!is.null(lefse_file))
@@ -2516,7 +2540,7 @@ pArgs
   }
 
   # Add bug associated bug microbiome
-  lsBugBugInfo = func_generate_bug_bug_spiking_matrix(int_number_features=int_number_features, int_number_samples=int_number_samples, iMinNumberCounts=dMinOccurenceCount, iMinNumberSamples=dMinOccurenceSample, iReadDepth=iReadDepth, vdExp=vdExp, vdMu=vdMu, vdPercentZero=vdPercentZero, vdSD=vdSD, fZeroInflate=fZeroInflate, lSDRel=list(BetaSD=c_dSDBeta, InterceptSD=c_dSDIntercept), lPercentZeroRel = list(InterceptZero=c_dInterceptZero, BetaZero=c_dBetaZero, Beta2Zero=c_dBeta2Zero, Scale=options[[ 'scalePercentZeros' ]]), dBetaGrandSD=c_dBetaGrandSD, fVerbose=fVerbose, dVarScale=dVarScale,iNumAssociations=iNumAssociations,iMaxNumberCorrDomainBugs=iMaxNumberCorrDomainBugs)
+  lsBugBugInfo = func_generate_bug_bug_spiking_matrix(int_number_features=int_number_features, int_number_samples=int_number_samples, iMinNumberCounts=dMinOccurenceCount, iMinNumberSamples=dMinOccurenceSample, iReadDepth=iReadDepth, vdExp=vdExp, vdMu=vdMu, vdPercentZero=vdPercentZero, vdSD=vdSD, fZeroInflate=fZeroInflate, lSDRel=list(BetaSD=c_dSDBeta, InterceptSD=c_dSDIntercept), lPercentZeroRel = list(InterceptZero=c_dInterceptZero, BetaZero=c_dBetaZero, Scale=options[[ 'scalePercentZeros' ]]), dBetaGrandSD=c_dBetaGrandSD, fVerbose=fVerbose, dVarScale=dVarScale,iNumAssociations=iNumAssociations,iMaxNumberCorrDomainBugs=iMaxNumberCorrDomainBugs)
   list_of_bugs[[length(list_of_bugs)+1]] = lsBugBugInfo[["mtrxBugs"]]
   vParametersAssociations = c(vParametersAssociations,lsBugBugInfo[["vStrParameters"]])
   lsMicrobiomeKeys[[length(lsMicrobiomeKeys)+1]] = c_strBugBugAssocations
