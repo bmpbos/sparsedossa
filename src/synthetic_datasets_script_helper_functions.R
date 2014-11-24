@@ -587,26 +587,26 @@ dMinLevelPercent
 
   # Continous metadata, generated means
   # Generating and padding the list of potential mean values
-  # li_mean_value_list = list(runif(1, c_dRunifMin, c_dRunifMax),1,100)
-  # if(length(li_mean_value_list) < (int_base_metadata_number*2))
-  # {
-    # for (k in (length(li_mean_value_list)+1):(int_base_metadata_number*2))
-    # {
-      # li_mean_value_list = c(li_mean_value_list,runif(1, c_dRunifMin, c_dRunifMax))
-    # }
-  # } else {
-    # li_mean_value_list = li_mean_value_list[1:(int_base_metadata_number*2)]
-  # }
+  li_mean_value_list = list(runif(1, c_dRunifMin, c_dRunifMax),1,100)
+  if(length(li_mean_value_list) < (int_base_metadata_number*2))
+  {
+   for (k in (length(li_mean_value_list)+1):(int_base_metadata_number*2))
+   {
+   li_mean_value_list = c(li_mean_value_list,runif(1, c_dRunifMin, c_dRunifMax))
+   }
+  } else {
+   li_mean_value_list = li_mean_value_list[1:(int_base_metadata_number*2)]
+  }
 
   # # generating the continuous metadata
   # # Should be random normal (is not bugs)
   i = 1
-  # for (mean_value in li_mean_value_list)
-  # {
-    # mat_metadata[i,] = rnorm(int_number_samples,mean=mean_value,sd=mean_value/5)
-    # mtrxParameters = c(mtrxParameters, paste(c_strMetadata, i, " ", c_strContinuous, sep =""))
-    # i = i+1
-  # }
+  for (mean_value in li_mean_value_list)
+  {
+   mat_metadata[i,] = rnorm(int_number_samples,mean=mean_value,sd=mean_value/5)
+   mtrxParameters = c(mtrxParameters, paste(c_strMetadata, i, " ", c_strContinuous, sep =""))
+   i = i+1
+  }
 	
   # generating the binary variables
   # Set up what the distributions for the different binary metadata will be
@@ -664,42 +664,42 @@ dMinLevelPercent
 
   # # generating the quarternary metadata with simple distributions and at least one uniform
   # # names of the feature choices
-  # li_list_of_distributions = list(uniform=c(.25,.25,.25,.25), c(.2,.2,.3,.3), c(.3,.3,.2,.2), c(.2,.2,.2,.4))
-  # if(length(li_list_of_distributions) < int_base_metadata_number)
-  # {
-    # for (k in (length(li_list_of_distributions)+1):int_base_metadata_number)
-    # {
-      # li_list_of_distributions = c(li_list_of_distributions, list(c(.25,.25,.25,.25)))
-    # }
-  # } else {
-    # li_list_of_distributions = li_list_of_distributions[1:int_base_metadata_number]
-  # }
+  li_list_of_distributions = list(uniform=c(.25,.25,.25,.25), c(.2,.2,.3,.3), c(.3,.3,.2,.2), c(.2,.2,.2,.4))
+  if(length(li_list_of_distributions) < int_base_metadata_number)
+  {
+   for (k in (length(li_list_of_distributions)+1):int_base_metadata_number)
+   {
+  li_list_of_distributions = c(li_list_of_distributions, list(c(.25,.25,.25,.25)))
+   }
+  } else {
+   li_list_of_distributions = li_list_of_distributions[1:int_base_metadata_number]
+  }
 
   # # handpicked n-nomial distributions (metadata values)
-  # quarternary_names = c(1,2,3,4)
+  quarternary_names = c(1,2,3,4)
 
-  # for (distribution in li_list_of_distributions)
-  # {
-    # vsCurMetadata = funcSample( quarternary_names, size=int_number_samples, prob=distribution, replace = TRUE)
-    # fMetadataFailed = !funcIsFactorMetadataValid(vsCurMetadata, iMinLevelQuarterneryCount)
-    # iBinaryMetadataLoop = 1
-    # while(fMetadataFailed)
-    # {
-      # vsCurMetadata = funcSample( quarternary_names, size=int_number_samples, prob=distribution, replace = TRUE)
-      # fMetadataFailed = !funcIsFactorMetadataValid(vsCurMetadata, iMinLevelQuarterneryCount)
-      # iBinaryMetadataLoop = iBinaryMetadataLoop + 1
-      # if(iBinaryMetadataLoop > iLoopingControlIncrement)
-      # {
-        # fMetadataFailed = FALSE
-        # #print(paste("Suboptional metadata was created, did not pass quality control, is too imbalanced. Minimum level is preferred to be ", iMinLevelQuarterneryCount,"."))
-        # #print(vcCurMetadata)
-      # }
-    # }
-    # mat_metadata[i,] = vsCurMetadata
+  for (distribution in li_list_of_distributions)
+  {
+   vsCurMetadata = funcSample( quarternary_names, size=int_number_samples, prob=distribution, replace = TRUE)
+   fMetadataFailed = !funcIsFactorMetadataValid(vsCurMetadata, iMinLevelQuarterneryCount)
+   iBinaryMetadataLoop = 1
+   while(fMetadataFailed)
+  {
+  vsCurMetadata = funcSample( quarternary_names, size=int_number_samples, prob=distribution, replace = TRUE)
+   fMetadataFailed = !funcIsFactorMetadataValid(vsCurMetadata, iMinLevelQuarterneryCount)
+   iBinaryMetadataLoop = iBinaryMetadataLoop + 1
+   if(iBinaryMetadataLoop > iLoopingControlIncrement)
+   {
+   fMetadataFailed = FALSE
+   #print(paste("Suboptional metadata was created, did not pass quality control, is too imbalanced. Minimum level is preferred to be ", iMinLevelQuarterneryCount,"."))
+   #print(vcCurMetadata)
+   }
+   }
+   mat_metadata[i,] = vsCurMetadata
 
-    # mtrxParameters = c(mtrxParameters, paste(c_strMetadata, i, " ", c_strFactor, " ", paste(levels(as.factor(mat_metadata[i,])), collapse = " "), sep=""))
-    # i = i+1
-  # }
+   mtrxParameters = c(mtrxParameters, paste(c_strMetadata, i, " ", c_strFactor, " ", paste(levels(as.factor(mat_metadata[i,])), collapse = " "), sep=""))
+   i = i+1
+   }
   return(list(mat_metadata=mat_metadata, mtrxParameters=mtrxParameters))
 }
 
