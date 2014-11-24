@@ -20,8 +20,7 @@ c_strFeatureOutlier = "cyan"
 # Control flow constants
 iLoopingControlIncrement = 1000
 ### Max number of looping in looping functions
-# modified by bor to generate only binary data
-c_iCountTypesOfMetadata = 1
+c_iCountTypesOfMetadata = 4
 ### There are 4 types of metadata supported in metadata generation
 c_fIgnoreZerosInOutliers = TRUE
 ### Will not allow zeros to be used as the min value in swapping unless they are needed to fulfill the number of
