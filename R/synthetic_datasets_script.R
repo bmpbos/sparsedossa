@@ -12,22 +12,54 @@
 # (contact Timothy Tickle, ttickle@hsph.harvard.edu).
 #######################################################################################
 
-source("synthetic_datasets_script_constants.R")
-source("synthetic_datasets_script_helper_functions.R")
-source("synthetic_datasets_script_bug_bug.R")
-source("synthetic_datasets_script_options.R")
 
-main = function(
-pArgs
+suppressMessages(library( optparse, warn.conflicts=FALSE, quietly=TRUE, verbose=FALSE))
+
+source("R/synthetic_datasets_script_constants.R")
+source("R/synthetic_datasets_script_helper_functions.R")
+source("R/synthetic_datasets_script_bug_bug.R")
+source("R/synthetic_datasets_script_options.R")
+ 
+ 
+
+sparseDOSSA = function(
+		variance_scale = 1,
+		bugs_to_spike = 0,
+		calibrate = NA,
+		datasetCount = 1,
+		read_depth = 8030,
+		number_features = 300,
+		bugBugCoef =  "0,0.5",
+		spikeCount = "1",
+		percent_spiked = 0.03,
+		minLevelPercent =  0.1,
+		max_domain_bugs = 2,
+		number_samples = 50, 
+		max_percent_outliers = 0.05,
+		number_metadata = 5,
+		spikeStrength =  "1.0",
+		seed =  NA,
+		percent_outlier_spikins = 0.05,
+		minOccurence =  0,
+		verbose =  TRUE,
+		minSample =  0,
+		scalePercentZeros = 1,
+		association_type =  "linear",
+		noZeroInflate =  FALSE,
+		noRunMetadata = FALSE,
+		runBugBug =  FALSE,
+		help =  FALSE
 ){
-  options(warn=1)
-  lxArgs = parse_args(pArgs,positional_arguments = TRUE)
-  print("lxArgs")
-  print(lxArgs)
-  options = lxArgs[['options']]
 
-  # Get arguments and check defaults
-  seed = options[[ 'seed' ]]
+	suppressMessages(library( optparse, warn.conflicts=FALSE, quietly=TRUE, verbose=FALSE))
+ 
+
+   pArgs <- OptionParser(usage="synthetic_datasets_script.R [options] NormalizedFile(Optional) CountFile(Optional) TrueFile(Optional)",option_list=option_list)
+   lxArgs = parse_args(pArgs,positional_arguments = TRUE)
+   options = lxArgs[['options']]
+   options(warn=1)
+   seed = options[[ 'seed' ]]
+ 
 
   lefse_file = options[[ 'lefse_file' ]]
 
@@ -555,4 +587,40 @@ pArgs
 # library or inlinedocs.
 if( identical( environment( ), globalenv( ) ) &&
 	!length( grep( "^source\\(", sys.calls( ) ) ) ) {
-	main(OptionParser(usage="synthetic_datasets_script.R [options] NormalizedFile(Optional) CountFile(Optional) TrueFile(Optional)",option_list=option_list) ) }
+	source("R/synthetic_datasets_script_constants.R")
+	source("R/synthetic_datasets_script_helper_functions.R")
+	source("R/synthetic_datasets_script_bug_bug.R")
+	source("R/synthetic_datasets_script_options.R")
+	pArgs <- OptionParser(usage="synthetic_datasets_script.R [options] NormalizedFile(Optional) CountFile(Optional) TrueFile(Optional)",option_list=option_list)
+	lxArgs = parse_args(pArgs,positional_arguments = TRUE)
+	options = lxArgs[['options']]
+	sparseDOSSA(
+	lxArgs$options$variance_scale,
+	lxArgs$options$bugs_to_spike,
+	lxArgs$options$calibrate,
+	lxArgs$options$datasetCount,
+	lxArgs$options$read_depth,
+	lxArgs$options$number_features,
+	lxArgs$options$bugBugCoef,
+	lxArgs$options$spikeCount,
+	lxArgs$options$percent_spiked,
+	lxArgs$options$minLevelPercent,
+	lxArgs$options$max_domain_bugs,
+	lxArgs$options$number_samples, 
+	lxArgs$options$max_percent_outliers,
+	lxArgs$options$number_metadata,
+	lxArgs$options$spikeStrength,
+	lxArgs$options$seed,
+	lxArgs$options$percent_outlier_spikins,
+	lxArgs$options$minOccurence,
+	lxArgs$options$verbose,
+	lxArgs$options$minSample,
+	lxArgs$options$scalePercentZeros,
+	lxArgs$options$association_type,
+	lxArgs$options$noZeroInflate,
+	lxArgs$options$noRunMetadata,
+	lxArgs$options$runBugBug,
+	lxArgs$options$help
+		)
+	######main(OptionParser(usage="synthetic_datasets_script.R [options] NormalizedFile(Optional) CountFile(Optional) TrueFile(Optional)",option_list=option_list) ) 
+	}
