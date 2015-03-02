@@ -6,7 +6,7 @@ library(sparseDOSSA)
 setwd("..") 
  
 
-expected_sparsedossa_results <- read.csv("tests/expected_SyntheticMicrobiome.pcl", header=TRUE,sep="\t")
+expected_sparsedossa_results <- read.csv("tests/expected_SyntheticMicrobiome.pcl",  row.names=1,header=TRUE,sep="\t")
 
 sparseDOSSA (
 	variance_scale = 1,
@@ -37,5 +37,7 @@ sparseDOSSA (
 	help =  FALSE
 )
 
-sparsedossa_results <- read.csv("SyntheticMicrobiome.pcl", header=TRUE,sep="\t")
+sparsedossa_results <- read.csv("SyntheticMicrobiome.pcl", row.names=1, header=TRUE,sep="\t")
+
 expect_that(colnames(expected_sparsedossa_results),equals(colnames(sparsedossa_results)))
+expect_that(rownames(expected_sparsedossa_results),equals(rownames(sparsedossa_results)))
