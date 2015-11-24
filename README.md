@@ -36,7 +36,7 @@ $ hg clone https://bitbucket.org/biobakery/sparsedossa
 
 This section presents some basic usages of SparseDOSSA.
 
-SparseDOSSA's hierarchical model is calibrated using the PRISM dataset by default. If you have your own reference dataset and would like to simulate data based on it, here is the basic example of fitting a given dataset to SparseDOSSA's hierarchical model. Assume the dataset is in a QIIME OTU table format with name reference_OTU.txt. An output file named SyntheticMicrobiomeParameterFile.txt will record all the point estimates of the parameters:
+SparseDOSSA's hierarchical model is calibrated using the [PRISM dataset](https://www.dropbox.com/s/akgv0bv8bbpzcqo/prism.tsv?dl=0) by default. If you have your own reference dataset and would like to simulate data based on it, here is the basic example of fitting a given dataset to SparseDOSSA's hierarchical model. Assume the dataset is in a QIIME OTU table format with name reference_OTU.txt. An output file named SyntheticMicrobiomeParameterFile.txt will record all the point estimates of the parameters:
 
 ```
 #!cmd
