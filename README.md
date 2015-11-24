@@ -155,16 +155,16 @@ Options:
                 The percent of samples to spike in outliers. A real number between 0 to 1 is expected.
 
         -u MINOCCURENCE, --minOccurence=MINOCCURENCE
-                Minimum counts a bug can have for the ocurrence quality control filter used when creating bugs. 
-                (Filtering minimum number of counts in a minimum number of samples). A positive integer is expected.
+                Minimum counts a bug can have for the ocurrence quality control filter used when creating bugs. (Filtering minimum number of counts in a minimum number of samples). 
+                A positive integer is expected.
 
         -v, --verbose
                 If True logging and plotting is made by the underlying methodology. This is a flag, 
                 it is either included or not included in the commandline, no value needed.
 
         -w MINSAMPLE, --minSample=MINSAMPLE
-                Minimum samples a bug can be in for the ocurrence quality control filter used when creating bugs.
-                (Filtering minimum number of counts in a minimum number of samples). A positive integer is expected.
+                Minimum samples a bug can be in for the ocurrence quality control filter used when creating bugs. (Filtering minimum number of counts in a minimum number of samples). 
+                A positive integer is expected.
 
         -x SCALEPERCENTZEROS, --scalePercentZeros=SCALEPERCENTZEROS
                 A scale used to multiply the percent zeros of all features across the sample after it is derived from the relatiohships with it and 
