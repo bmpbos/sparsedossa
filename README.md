@@ -8,18 +8,27 @@ AUTHORS: Boyu Ren (bor158@mail.harvard.edu)
 
 SparseDOSSA introduces a hierarchical model of microbial ecological population structure. It is capable of simulating realistic metagenomic data with known correlation structures, and thus provides a gold standard to enable benchmarking of statistical metagenomics methods. SparseDOSSA's model captures the marginal distribution of each microbial feature as a truncated, zero-inflated log-normal distribution, with parameters derived in turn from a parent log-normal distribution. The model can be effectively fit to reference microbial datasets in order to parameterize their microbes and communities, or to simulate synthetic datasets of similar population structure. Most importantly, it allows users to include both known feature-feature and feature-metadata correlation structures.
 
+If you use this software, please cite :
+_Will add once the paper is out_
+
 -------------
 
 ##**Pre-requisites**##
 
-SparseDOSSA requires R 3.0.2 or higher with argparse library installed.
+SparseDOSSA requires *R 3.0.2* or higher with [*optparse*](https://cran.r-project.org/web/packages/optparse/optparse.pdf) library installed.
 
 ----------------------
 
 ##**Installation**##
 
-SparseDOSSA can be obtained by cloning the repository via the following commands
-``$ hg clone https://bitbucket.org/biobakery/sparsedossa``
+SparseDOSSA can be obtained by either [Download SparseDOSSA](https://bitbucket.org/biobakery/sparsedossa/get/default.zip)
+
+**OR**
+
+Cloning the repository via the following command
+``
+$ hg clone https://bitbucket.org/biobakery/sparsedossa
+``
 
 --------------------------
 
@@ -55,6 +64,6 @@ You can also simulate dataset with feature-feature correlation only. Assume each
 $ synthetic_datasets_script.R -f 50 -b 10 -m 2 -n 10 -p 10 --runBugBug
 ```
 
-For advanced options and other analysis types (such as strain tracking) please refer to the full command-line options.
+
 
 ##**Full command-line options**##
