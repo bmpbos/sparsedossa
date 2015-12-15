@@ -45,7 +45,7 @@ The SparseDOSSA generative model has three main components:
 ###**Estimation of model parameters**###
 
 We introduced a hierarchical model to jointly describe the distribution characteristics of OTUs. The model is summarized in the following figure:
-![Alt text](C:/Users/Boyu/Desktop/Figure1.jpg)
+![Figure1.jpg](https://bitbucket.org/repo/89po5a/images/7075921-Figure1.jpg)
 
 --------------------------
 
