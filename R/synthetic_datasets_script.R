@@ -15,12 +15,34 @@
 
 suppressMessages(library( optparse, warn.conflicts=FALSE, quietly=TRUE, verbose=FALSE))
 
-source("R/synthetic_datasets_script_constants.R")
-source("R/synthetic_datasets_script_helper_functions.R")
-source("R/synthetic_datasets_script_bug_bug.R")
-source("R/synthetic_datasets_script_options.R")
- 
- 
+
+source_sparsedossa_R_scripts = function ()
+{
+  # source all R scripts in the same folder as this script
+  # code from Maaslin.R
+
+  # get the directory that contains this script
+  initial.options <- commandArgs(trailingOnly = FALSE)
+  script.name <- sub("--file=", "", initial.options[grep("--file=", initial.options)])
+  strDir = file.path( dirname( script.name )  )
+
+  if (identical(strDir, character(0)))                   #if Running under R with no override
+    {strDir <- c("./R")}
+
+  # get the name of this script
+  strSelf = basename( script.name )
+  if (identical(strSelf, character(0)))                   #if Running under R with no override - force it
+    {strSelf <- c("synthetic_datasets_script.R")}
+
+  # source all R scripts in the same folder as this script
+  for( strR in dir( strDir, pattern = "*.R$" ) )
+  {
+    if( strR == strSelf ) {next}
+    source( file.path( strDir, strR ) )
+  }
+}
+
+source_sparsedossa_R_scripts()
 
 sparseDOSSA = function(
 		variance_scale = 1,
@@ -587,10 +609,7 @@ sparseDOSSA = function(
 # library or inlinedocs.
 if( identical( environment( ), globalenv( ) ) &&
 	!length( grep( "^source\\(", sys.calls( ) ) ) ) {
-	source("R/synthetic_datasets_script_constants.R")
-	source("R/synthetic_datasets_script_helper_functions.R")
-	source("R/synthetic_datasets_script_bug_bug.R")
-	source("R/synthetic_datasets_script_options.R")
+        source_sparsedossa_R_scripts()
 	pArgs <- OptionParser(usage="synthetic_datasets_script.R [options] NormalizedFile(Optional) CountFile(Optional) TrueFile(Optional)",option_list=option_list)
 	lxArgs = parse_args(pArgs,positional_arguments = TRUE)
 	options = lxArgs[['options']]
