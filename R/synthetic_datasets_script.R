@@ -45,71 +45,62 @@ source_sparsedossa_R_scripts = function ()
 source_sparsedossa_R_scripts()
 
 sparseDOSSA = function(
-		variance_scale = 1,
-		bugs_to_spike = 0,
-		calibrate = NA,
-		datasetCount = 1,
-		read_depth = 8030,
-		number_features = 300,
-		bugBugCoef =  "0,0.5",
-		spikeCount = "1",
-		percent_spiked = 0.03,
-		minLevelPercent =  0.1,
-		max_domain_bugs = 2,
-		number_samples = 50, 
-		max_percent_outliers = 0.05,
-		number_metadata = 5,
-		spikeStrength =  "1.0",
-		seed =  NA,
-		percent_outlier_spikins = 0.05,
-		minOccurence =  0,
-		verbose =  TRUE,
-		minSample =  0,
-		scalePercentZeros = 1,
-		association_type =  "linear",
-		noZeroInflate =  FALSE,
-		noRunMetadata = FALSE,
-		runBugBug =  FALSE,
-		help =  FALSE
+		strNormalizedFileName = option_default[['strNormalizedFileName']],
+		strCountFileName = option_default[['strCountFileName']],
+		parameter_filename = option_default[['parameter_filename']],
+		variance_scale = option_default[['variance_scale']],
+		bugs_to_spike = option_default[['bugs_to_spike']],
+		calibrate = option_default[['calibrate']],
+		datasetCount = option_default[['datasetCount']],
+		read_depth = option_default[['read_depth']],
+		number_features = option_default[['number_features']],
+		bugBugCoef =  option_default[['bugBugCoef']],
+		spikeCount = option_default[['spikeCount']],
+		lefse_file = option_default[['lefse_file']],
+		percent_spiked = option_default[['percent_spiked']],
+		minLevelPercent = option_default[['minLevelPercent']],
+		max_domain_bugs = option_default[['max_domain_bugs']],
+		number_samples = option_default[['number_samples']], 
+		max_percent_outliers = option_default[['max_percent_outliers']],
+		number_metadata = option_default[['number_metadata']],
+		spikeStrength = option_default[['spikeStrength']],
+		seed =  option_default[['seed']],
+		percent_outlier_spikins = option_default[['percent_outlier_spikins']],
+		minOccurence =  option_default[['minOccurence']],
+		verbose =  option_default[['verbose']],
+		minSample =  option_default[['minSample']],
+		scalePercentZeros = option_default[['scalePercentZeros']],
+		association_type =  option_default[['association_type']],
+		noZeroInflate =  option_default[['noZeroInflate']],
+		noRunMetadata = option_default[['noRunMetadata']],
+		runBugBug =  option_default[['runBugBug']]
 ){
 
-	suppressMessages(library( optparse, warn.conflicts=FALSE, quietly=TRUE, verbose=FALSE))
- 
-
-   pArgs <- OptionParser(usage="synthetic_datasets_script.R [options] NormalizedFile(Optional) CountFile(Optional) TrueFile(Optional)",option_list=option_list)
-   lxArgs = parse_args(pArgs,positional_arguments = TRUE)
-   options = lxArgs[['options']]
-   options(warn=1)
-   seed = options[[ 'seed' ]]
- 
-
-  lefse_file = options[[ 'lefse_file' ]]
-
-  int_base_metadata_number = options[[ 'number_metadata' ]]
+  int_base_metadata_number = number_metadata
   if(int_base_metadata_number<1) stop("Please provide the base number for metadata generation as 1 or greater.")
 
-  int_number_features = options[[ 'number_features' ]]
+  int_number_features = number_features
   if(int_number_features<1) stop("Please provide a number of features of atleast 1")
 
-  strAssociationType = options[[ 'association_type' ]]
+  strAssociationType = association_type
   if(!strAssociationType %in% c("linear","rounded_linear")) stop("Only linear associations supported at this point.")
   
-  int_number_samples = options[[ 'number_samples' ]]
+  int_number_samples = number_samples
   if(int_number_samples<1) stop("Please provide a number of samples of atleast 1")
 
-  dPercentOutliers = options[[ 'max_percent_outliers' ]]
+  dPercentOutliers = max_percent_outliers
   if( (dPercentOutliers>1) | (dPercentOutliers<0) ) stop("Please provide a percent outliers in the range of 0 to 1")
 
-  dPercentOutlierSpikins = options[[ 'percent_outlier_spikins' ]]
+  dPercentOutlierSpikins = percent_outlier_spikins
   if( (dPercentOutlierSpikins>1) | (dPercentOutlierSpikins<0) ) stop("Please provide a percent spikins in the range of 0 to 1")
 
-  iReadDepth = options[['read_depth']]
+  iReadDepth = read_depth
   if(iReadDepth < max(int_number_features, int_number_samples)) stop("Please provide a read depth of atleast equal to feature size or sample size (which ever is larger)")
 
-  iNumAssociations = options[[ 'bugs_to_spike' ]]
+  iNumAssociations = bugs_to_spike
   if(iNumAssociations<0) stop("Please provide a number of associations (bug-bug correlation) greater than or equal to 0")
 
-  strVarScale = options[[ 'variance_scale' ]]
+  strVarScale = variance_scale
   vdVarScale = as.vector(
       sapply(
           strsplit(strVarScale,',')[[1]],
@@ -118,28 +109,28 @@ sparseDOSSA = function(
       )
   if(sum(vdVarScale<0)>0) stop("Please provide variance scaling parameters greater than or equal to 0.")
 
-  iMaxNumberCorrDomainBugs = options[[ 'max_domain_bugs' ]]
+  iMaxNumberCorrDomainBugs = max_domain_bugs
   if(iMaxNumberCorrDomainBugs<0) stop("Please provide a maximum number of domain features greater than or equal to 0")
   if(iMaxNumberCorrDomainBugs==0){
     iNumAssociations <-0
     warning("The maximum number of domain features is 0: setting the number of bug-bug associations to 0")
   }
 
-  iNumberDatasets = options[[ "datasetCount" ]]
+  iNumberDatasets = datasetCount
   if(iNumberDatasets<1) stop("Please provide a number of datasets which is at least 1.")
 
-  dPercentMultSpiked = options[[ 'percent_spiked' ]]
+  dPercentMultSpiked = percent_spiked
   if( (dPercentMultSpiked>1) | (dPercentMultSpiked<0) ) stop("Please provide a percent multivariate spike in the range of 0 to 1")
 
-  strCalibrationFile = options[[ 'calibrate' ]]
+  strCalibrationFile = calibrate
 
-  dMinLevelCountPercent = options[[ 'minLevelPercent' ]]
+  dMinLevelCountPercent = minLevelPercent
   if( (dMinLevelCountPercent>1) | (dMinLevelCountPercent<0) ) stop("Please provide a min level percent in the range of 0 to 1")
 
-  dMinOccurenceCount = options[[ 'minOccurence' ]]
+  dMinOccurenceCount = minOccurence
   if(dMinOccurenceCount<0) stop("Please provide a min occurence greater than or equal to 0")
 
-  dMinOccurenceSample = options[[ 'minSample' ]]
+  dMinOccurenceSample = minSample
   if(dMinOccurenceSample<0) stop("Please provide a min sample greater than or equal to 0")
   if(dMinOccurenceSample>int_number_samples)
   {
@@ -147,11 +138,11 @@ sparseDOSSA = function(
     print(paste("The min sample (for QC) was larger than the actual sample size, reset the min sample to the sample size, minSample is now equal to number_samples which is ",int_number_samples))
   }
 
-  if ( options[[ 'scalePercentZeros' ]] < 0 ){ stop( "Please provide a scale percent zero greater than 0." ) }
+  if ( scalePercentZeros < 0 ){ stop( "Please provide a scale percent zero greater than 0." ) }
 
-  vdSpikeCount = as.integer(unlist( strsplit( options[[ 'spikeCount' ]], "," ) ) )
+  vdSpikeCount = as.integer(unlist( strsplit( spikeCount, "," ) ) )
 
-  vdSpikeStrength = as.double( unlist( strsplit( options[[ 'spikeStrength' ]], "," ) ) )
+  vdSpikeStrength = as.double( unlist( strsplit( spikeStrength, "," ) ) )
 
   if( length( vdSpikeCount ) != length( vdSpikeStrength ) )
   {
@@ -166,7 +157,7 @@ sparseDOSSA = function(
     }
   }
 
-  strBugBugCoef = options[[ 'bugBugCoef' ]]
+  strBugBugCoef = bugBugCoef
   vecBugBugCoef = as.vector(
       sapply(
           strsplit(strBugBugCoef,',')[[1]],
@@ -179,28 +170,10 @@ sparseDOSSA = function(
   
   mtrxSpikeConfig = cbind( vdSpikeCount, vdSpikeStrength )
 
-  fVerbose     = options[[ 'verbose' ]]
-  fZeroInflate = !options[[ 'noZeroInflate' ]]
-  fRunMetadata = !options[[ "noRunMetadata" ]]
-  fRunBugBug   = options[[ "runBugBug" ]]
-
-  # locational arguments
-  file_names = lxArgs[[ 'args' ]]
-  strNormalizedFileName = file_names[1]
-  strCountFileName = file_names[2]
-  parameter_filename = file_names[3]
-  if(is.na(strNormalizedFileName))
-  {
-    strNormalizedFileName = "SyntheticMicrobiome.pcl"
-  }
-  if(is.na(strCountFileName))
-  {
-    strCountFileName = "SyntheticMicrobiome-Counts.pcl"
-  }
-  if(is.na(parameter_filename))
-  {
-    parameter_filename = "SyntheticMicrobiomeParameterFile.txt"
-  }
+  fVerbose     = verbose
+  fZeroInflate = !noZeroInflate
+  fRunMetadata = !noRunMetadata
+  fRunBugBug   = runBugBug
 
   # seed the random number generator
   if(!is.na(seed))
@@ -273,7 +246,7 @@ sparseDOSSA = function(
                                                                        lSDRel              = list(BetaSD=c_dSDBeta, InterceptSD=c_dSDIntercept), 
                                                                        lPercentZeroRel     = list( InterceptZero = c_dInterceptZero, 
                                                                                                    BetaZero      = c_dBetaZero, 
-                                                                                                   Scale         = options[[ 'scalePercentZeros' ]]), 
+                                                                                                   Scale         = scalePercentZeros), 
                                                                        dBetaGrandSD        = c_dBetaGrandSD, 
                                                                        fVerbose            = fVerbose )
 
@@ -433,7 +406,7 @@ sparseDOSSA = function(
                                                           lSDRel              = list( BetaSD = c_dSDBeta, InterceptSD = c_dSDIntercept ),
                                                           lPercentZeroRel     = list( InterceptZero = c_dInterceptZero,
                                                                                       BetaZero      = c_dBetaZero,
-                                                                                      Scale         = options[[ 'scalePercentZeros' ]]), 
+                                                                                      Scale         = scalePercentZeros), 
                                                           dBetaGrandSD        = c_dBetaGrandSD,
                                                           fVerbose            = fVerbose)
 
@@ -484,7 +457,7 @@ sparseDOSSA = function(
                                                                          lSDRel              = list(BetaSD=c_dSDBeta, InterceptSD=c_dSDIntercept), 
                                                                          lPercentZeroRel     = list( InterceptZero = c_dInterceptZero, 
                                                                                                      BetaZero      = c_dBetaZero, 
-                                                                                                     Scale         = options[[ 'scalePercentZeros' ]]), 
+                                                                                                     Scale         = scalePercentZeros), 
                                                                          dBetaGrandSD        = c_dBetaGrandSD, 
                                                                          fVerbose            = fVerbose )
 
@@ -613,7 +586,31 @@ if( identical( environment( ), globalenv( ) ) &&
 	pArgs <- OptionParser(usage="synthetic_datasets_script.R [options] NormalizedFile(Optional) CountFile(Optional) TrueFile(Optional)",option_list=option_list)
 	lxArgs = parse_args(pArgs,positional_arguments = TRUE)
 	options = lxArgs[['options']]
+
+    # positional optional file name arguments
+    file_names = lxArgs[[ 'args' ]]
+    strNormalizedFileName = file_names[1]
+    strCountFileName = file_names[2]
+    parameter_filename = file_names[3]	
+    
+    # if optional file names are not provided, set to defaults
+    if(is.na(strNormalizedFileName))
+    {
+      strNormalizedFileName = option_default[['strNormalizedFileName']]
+    }
+    if(is.na(strCountFileName))
+    {
+      strCountFileName = option_default[['strCountFileName']]
+    }
+    if(is.na(parameter_filename))
+    {
+      parameter_filename = option_default[['parameter_filename']]
+    }
+
 	sparseDOSSA(
+	strNormalizedFileName,
+	strCountFileName,
+	parameter_filename,
 	lxArgs$options$variance_scale,
 	lxArgs$options$bugs_to_spike,
 	lxArgs$options$calibrate,
@@ -622,6 +619,7 @@ if( identical( environment( ), globalenv( ) ) &&
 	lxArgs$options$number_features,
 	lxArgs$options$bugBugCoef,
 	lxArgs$options$spikeCount,
+	lxArgs$options$lefse_file,
 	lxArgs$options$percent_spiked,
 	lxArgs$options$minLevelPercent,
 	lxArgs$options$max_domain_bugs,
@@ -638,8 +636,7 @@ if( identical( environment( ), globalenv( ) ) &&
 	lxArgs$options$association_type,
 	lxArgs$options$noZeroInflate,
 	lxArgs$options$noRunMetadata,
-	lxArgs$options$runBugBug,
-	lxArgs$options$help
+	lxArgs$options$runBugBug
 		)
-	######main(OptionParser(usage="synthetic_datasets_script.R [options] NormalizedFile(Optional) CountFile(Optional) TrueFile(Optional)",option_list=option_list) ) 
+	
 	}

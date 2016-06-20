@@ -25,6 +25,9 @@ Maintainer:  Boyu Ren<bor158@mail.harvard.edu>, Emma Schwager <emma.schwager@gma
 }
 \examples{
 sparseDOSSA (
+strNormalizedFileName = "SyntheticMicrobiome.pcl",
+strCountFileName = "SyntheticMicrobiome-Counts.pcl",
+parameter_filename = "SyntheticMicrobiomeParameterFile.txt",
 variance_scale = 1,
 bugs_to_spike = 0,
 calibrate = NA,
@@ -33,6 +36,7 @@ read_depth = 8030,
 number_features = 300,
 bugBugCoef =  "0,0.5",
 spikeCount = "1",
+lefse_file = NA,
 percent_spiked = 0.03,
 minLevelPercent =  0.1,
 max_domain_bugs = 2,
@@ -49,7 +53,6 @@ scalePercentZeros = 1,
 association_type =  "linear",
 noZeroInflate =  FALSE,
 noRunMetadata = FALSE,
-runBugBug =  FALSE,
-help =  FALSE
+runBugBug =  FALSE
 )
 }

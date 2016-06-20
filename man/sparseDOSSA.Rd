@@ -5,7 +5,10 @@ Sparse Data Observations for Simulating Synthetic Abundance}
 \description{
 Sparse Data Observations for Simulating Synthetic Abundance}
 \usage{
-sparseDOSSA(variance_scale = 1,
+sparseDOSSA(strNormalizedFileName = "SyntheticMicrobiome.pcl",
+	 strCountFileName = "SyntheticMicrobiome-Counts.pcl",
+	 parameter_filename = "SyntheticMicrobiomeParameterFile.txt",
+	 variance_scale = 1,
 	 bugs_to_spike = 0,
 	 calibrate = NA, 
 	 datasetCount = 1, 
@@ -13,6 +16,7 @@ sparseDOSSA(variance_scale = 1,
 	 number_features = 300,
 	 bugBugCoef = "0,0.5",
 	 spikeCount = "1", 
+	 lefse_file = NA,
 	 percent_spiked = 0.03,
 	 minLevelPercent = 0.1, 
 	 max_domain_bugs = 2, 
@@ -28,9 +32,15 @@ sparseDOSSA(variance_scale = 1,
 	 association_type = "linear",
 	 noZeroInflate = FALSE, 
 	 noRunMetadata = FALSE, 
-	 runBugBug = FALSE, help = FALSE)
+	 runBugBug = FALSE)
 }
 \arguments{
+  \item{strNormalizedFileName}{
+  This output file records the synthetic microbiome data for null community (no spike-in and outliers), outlier-added community without spike-in and final spiked data. We put samples in columns and features in rows. The first chunk of the file is metadata, with row names Metdata_. The second chunk is for null community, with row names Feature_Lognormal_. The third chunk is for outlier-introduced community, with row names Feature_Outlier_*. The last chunk is for spiked data, with row names Feature_spike. This file records relative abundance data."} 
+  \item{strCountFileName}{
+  This output file has the same organization as the file strNormalizedFileName but records raw counts data.}
+  \item{parameter_filename}{
+  This output file records diagnostic information and values of model paramters as well as the spike-in assignment. The most part of this file is used only for debugging. Users can focus on lines after Minimum Spiked-in Samples. Those lines record which metadata are correlated with which feature. The format is all metadata that are correlated with a specific features are listed under the name of the feature.}
   \item{variance_scale}{
   Tuning parameters for noise in bug-bug associations, Non-negative values are expected,Multiple values should be comma-separated,Values will be recycled if the length doesn't match the number of associations }
   \item{bugs_to_spike}{
@@ -52,6 +62,8 @@ sparseDOSSA(variance_scale = 1,
 }
   \item{spikeCount}{
   Counts of spiked metadata used in the spike-in dataset - These values should be comma delimited values, in the order of the spikeStrength values (if given),  Can be one value, in this case the value will be repeated to pair with the spikeCount values (if multiple are present),Example 1,2,3"}
+  \item{lefse_file}{
+  Folder containing lefSe inputs.}
   \item{percent_spiked}{
   The percent of features spiked-in. A real number between 0 and 1 is expected
 }
@@ -100,9 +112,6 @@ sparseDOSSA(variance_scale = 1,
  }
   \item{runBugBug}{
   If given, bug-bug interaction files are generated in addition to any metadata files- This is a flag, it is either included or not included in the commandline, no value needed}
-  \item{help}{
-  Display help
-}
 }
  
 \value{
@@ -113,7 +122,9 @@ Timothy Tickle<ttickle@hsph.harvard.edu>,Curtis Huttenhower <chuttenh@hsph.harva
 }
 \examples{
  
-sparseDOSSA (
+sparseDOSSA(strNormalizedFileName = "SyntheticMicrobiome.pcl",
+	strCountFileName = "SyntheticMicrobiome-Counts.pcl",
+	parameter_filename = "SyntheticMicrobiomeParameterFile.txt",
 	variance_scale = 1,
 	bugs_to_spike = 0,
 	calibrate = NA,
@@ -122,6 +133,7 @@ sparseDOSSA (
 	number_features = 300,
 	bugBugCoef =  "0,0.5",
 	spikeCount = "1",
+	lefse_file = NA,
 	percent_spiked = 0.03,
 	minLevelPercent =  0.1,
 	max_domain_bugs = 2,
@@ -138,8 +150,6 @@ sparseDOSSA (
 	association_type =  "linear",
 	noZeroInflate =  FALSE,
 	noRunMetadata = FALSE,
-	runBugBug =  FALSE,
-	help =  FALSE
-)
+	runBugBug =  FALSE)
 }
  
