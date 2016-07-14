@@ -1912,7 +1912,7 @@ iThreshold = NA
   if (length(vdLogMean) != length(vdLogSD)){
       stop("vdLogMean and vdLogSD must have equal length")
   }
-  # Get truncated normal distribution
+  # Get truncated normal distribution with rows=samples, cols=features
   mdFeature = matrix(NA, nrow=iNumberMeasurements, ncol=length(vdLogSD))
   mdLogSD = diag(x=vdLogSD, nrow=length(vdLogSD))
   mdLogVar = mdLogSD %*% mdLogCorr %*% mdLogSD
@@ -2076,7 +2076,7 @@ mdLogCorr = diag(length(vdLogSD)),
 iThreshold = NA
 ### The threshold for outliers
 ){
-  # Get feature given distribution parameters
+  # Get feature given distribution parameters; returns matrix with rows=samples, cols=features
   mdFeature = funcTruncatedRLNorm( int_number_samples, vdLogMean, vdLogSD, mdLogCorr = mdLogCorr, iThreshold = iThreshold )
 
   # Zero inlate
