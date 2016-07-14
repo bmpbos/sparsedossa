@@ -1426,7 +1426,7 @@ fVerbose = FALSE
   dExpCal = funcGetExp(dMu,dSD)
 
   # Generate feature
-  dFeature_base = func_zero_inflate(log(dMu), dPercentZero, iNumberSamples, log(dSD), dTruncateThreshold)
+  dFeature_base = func_zero_inflate(log(dMu), dPercentZero, iNumberSamples, log(dSD), iThreshold=dTruncateThreshold)
 
   # Update the distributions to the targeted expectations
   dFeature = funcUpdateDistributionToExpectation( vdFeatures = dFeature_base, dExp = dExpCal )
@@ -1925,7 +1925,7 @@ iThreshold = NA
     mdFeature[i, ] = vdFeature
     #vdFeature = c( vdFeature, dFeature )
   }
-  if (ncol(mdFeature)==1) return(as.vector(mdFeature))
+#  if (ncol(mdFeature)==1) return(as.vector(mdFeature))
   #vdFeature = rlnorm( iNumberMeasurements, dLogMean, dLogSD )
 
   # If a value is given to truncate outliers
@@ -2058,35 +2058,45 @@ iTargetSum
 
 
 # 9 Tests 10/22/2013
+### Modified by ehs
 func_zero_inflate = function(
 ### Create a zero inflated log normal distribution with a specified mean and percentage of zeros.
 ### If you want to get the original values of mu and sd used in rlnorm, use mean(log(func_zero_inflate()))
 ### and sd(log(func_zero_inflate()))
-dLogMean,
+vdLogMean,
 ### Mean of the distribution (logged)
-dPercentZeroInflated,
+vdPercentZeroInflated,
 ### Percentage of return which is zero
 int_number_samples,
 ### The number of samples to create
-dLogSD,
+vdLogSD,
 ### The sd of the distribution (logged)
+mdLogCorr = diag(length(vdLogSD)),
+### The correlation matrix of the logged distribution; default is a identity matrix with dimension length(vdLogSD)
 iThreshold = NA
 ### The threshold for outliers
 ){
   # Get feature given distribution parameters
-  vdFeature = funcTruncatedRLNorm( int_number_samples, dLogMean, dLogSD, iThreshold = iThreshold )
+  mdFeature = funcTruncatedRLNorm( int_number_samples, vdLogMean, vdLogSD, mdLogCorr = mdLogCorr, iThreshold = iThreshold )
 
   # Zero inlate
   # modified by bor
-  viZeroLocations = as.logical( rbinom( int_number_samples, 1, dPercentZeroInflated ) )
-  vdFeature[viZeroLocations] = 0
+  miZeroLocations = as.logical( sapply( vdPercentZeroInflated, rbinom, n=int_number_samples, size=1 ) )
+  mdFeature[miZeroLocations] = 0
   
-  if( sum( vdFeature ) == 0 ){
-    vdFeature[sample(1:length(vdFeature),1)] = 1
+  if( any(colSums( mdFeature ) == 0 ) ){
+    zero_cols <- which( colSums( mdFeature ) == 0 )
+    one_rows  <- sample( ncol(mdFeature), length(zero_cols) )
+    for ( k in seq_along( zero_cols ) ){
+        mdFeature[one_rows[k], zero_cols[k]] = 1
+    }
+#    vdFeature[sample(1:length(vdFeature),1)] = 1
   }
+
+  if (ncol(mdFeature)==1) return(as.vector(mdFeature))
   #viZeroLocations = funcSample( 1:int_number_samples, floor( int_number_samples * dPercentZeroInflated ), replace = FALSE )
   #if( length( viZeroLocations ) ){ vdFeature[ viZeroLocations ] = 0 }
 
   # Return zero-inflated truncated lognormal feature
-  return( vdFeature )
+  return( mdFeature )
 }
