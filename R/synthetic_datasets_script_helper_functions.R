@@ -1898,22 +1898,33 @@ funcTruncatedRLNorm = function(
 ### Return draws from a random log normal distribution with a truncated tail so outliers are not introduced.
 iNumberMeasurements,
 ### The number of measurements for this distribution
-dLogMean,
+vdLogMean,
 ### The mean of the logged distribution
-dLogSD,
+vdLogSD,
 ### The SD of the logged distribution
+mdLogCorr = diag(length(vdLogSD)),
+### The correlation matrix of the logged distribution; default is a identity matrix with dimension length(vdLogSD)
 iThreshold = NA
 ### The value used to define outliers. 
 ){
-  # Get truncated normal distribution
-  vdFeature = c()
-  for( i in 1:iNumberMeasurements ){
-    dFeature = rlnorm( 1, dLogMean, dLogSD )
-    while( dFeature > iThreshold ){
-      dFeature = rlnorm( 1, dLogMean, dLogSD )
-    }
-    vdFeature = c( vdFeature, dFeature )
+  # Check that vdLogMean and vdLogSD are same length
+  if (length(vdLogMean) != length(vdLogSD)){
+      stop("vdLogMean and vdLogSD must have equal length")
   }
+  # Get truncated normal distribution
+  mdFeature = matrix(NA, nrow=iNumberMeasurements, ncol=length(vdLogSD))
+  mdLogSD = diag(x=vdLogSD, nrow=length(vdLogSD))
+  mdLogVar = mdLogSD %*% mdLogCorr %*% mdLogSD
+  for( i in 1:iNumberMeasurements ){
+    vdFeature = as.vector(exp(mvtnorm::rmvnorm(1, vdLogMean, mdLogVar)))
+#    dFeature = rlnorm( 1, dLogMean, dLogSD )
+    while( any(vdFeature > iThreshold) ){
+      vdFeature = as.vector(exp(mvtnorm::rmvnorm( 1, vdLogMean, mdLogVar )))
+    }
+    mdFeature[i, ] = vdFeature
+    #vdFeature = c( vdFeature, dFeature )
+  }
+  if (ncol(mdFeature)==1) return(as.vector(mdFeature))
   #vdFeature = rlnorm( iNumberMeasurements, dLogMean, dLogSD )
 
   # If a value is given to truncate outliers
@@ -1939,7 +1950,7 @@ iThreshold = NA
   #Truncate negatives to zero
   #vdFeature[ vdFeature < 0 ] = 0
 
-  return( vdFeature )
+  return( mdFeature )
 ### vdFeature: The signal (optionally truncated, log normal distribution)
 }
 
