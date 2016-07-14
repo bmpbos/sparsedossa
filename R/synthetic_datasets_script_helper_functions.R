@@ -1894,6 +1894,7 @@ fZeroInflated = TRUE
 
 ### 6 Tests 10-22-2013
 ### Modified by bor
+### Modified by ehs
 funcTruncatedRLNorm = function(
 ### Return draws from a random log normal distribution with a truncated tail so outliers are not introduced.
 iNumberMeasurements,
