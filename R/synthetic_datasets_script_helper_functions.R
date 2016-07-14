@@ -1426,7 +1426,7 @@ fVerbose = FALSE
   dExpCal = funcGetExp(dMu,dSD)
 
   # Generate feature
-  dFeature_base = func_zero_inflate(log(dMu), dPercentZero, iNumberSamples, log(dSD), iThreshold=dTruncateThreshold)
+  dFeature_base = func_zero_inflate(log(dMu), dPercentZero, iNumberSamples, log(dSD), viThreshold=dTruncateThreshold)
 
   # Update the distributions to the targeted expectations
   dFeature = funcUpdateDistributionToExpectation( vdFeatures = dFeature_base, dExp = dExpCal )
@@ -1905,7 +1905,7 @@ vdLogSD,
 ### The SD of the logged distribution
 mdLogCorr = diag(length(vdLogSD)),
 ### The correlation matrix of the logged distribution; default is a identity matrix with dimension length(vdLogSD)
-iThreshold = NA
+viThreshold = NA
 ### The value used to define outliers. 
 ){
   # Check that vdLogMean and vdLogSD are same length
@@ -1919,7 +1919,7 @@ iThreshold = NA
   for( i in 1:iNumberMeasurements ){
     vdFeature = as.vector(exp(mvtnorm::rmvnorm(1, vdLogMean, mdLogVar)))
 #    dFeature = rlnorm( 1, dLogMean, dLogSD )
-    while( any(vdFeature > iThreshold) ){
+    while( any(vdFeature > viThreshold) ){
       vdFeature = as.vector(exp(mvtnorm::rmvnorm( 1, vdLogMean, mdLogVar )))
     }
     mdFeature[i, ] = vdFeature
@@ -2073,11 +2073,11 @@ vdLogSD,
 ### The sd of the distribution (logged)
 mdLogCorr = diag(length(vdLogSD)),
 ### The correlation matrix of the logged distribution; default is a identity matrix with dimension length(vdLogSD)
-iThreshold = NA
+viThreshold = NA
 ### The threshold for outliers
 ){
   # Get feature given distribution parameters; returns matrix with rows=samples, cols=features
-  mdFeature = funcTruncatedRLNorm( int_number_samples, vdLogMean, vdLogSD, mdLogCorr = mdLogCorr, iThreshold = iThreshold )
+  mdFeature = funcTruncatedRLNorm( int_number_samples, vdLogMean, vdLogSD, mdLogCorr = mdLogCorr, viThreshold = viThreshold )
 
   # Zero inlate
   # modified by bor
