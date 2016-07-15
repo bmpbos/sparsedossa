@@ -705,6 +705,7 @@ dMinLevelPercent
 
 
 ### Not formally tested
+### Modified by ehs
 func_generate_random_lognormal_matrix = function(
 int_number_features,
 ### Number of features
@@ -724,6 +725,8 @@ vdPercentZero = NA,
 ### Vector of percent zero parameters for the original exp distribution (means of features) if not supplied, one will be generated
 vdSD = NA,
 ### Vector of SD parameters for the original exp distribution (means of features) if not supplied, one will be generated
+mdLogCorr = diag(int_number_features),
+### The correlation matrix of the logged distribution; default is a identity matrix with dimension int_number_features
 fZeroInflate = TRUE,
 ### Turns off Zero inflation if FALSE (default TRUE, zero inflation turned on)
 lSDRel = NA,
@@ -784,25 +787,23 @@ fVerbose = FALSE
 
   # Make features and assign feature samples to samples giving higher counts to lower read depth samples.
   print("func_generate_random_lognormal_matrix: START Making features")
-  for(iReset in 1:int_number_features)
-  {
-    # Create new feature
-    lFeatureDetails = funcMakeFeature(
-        vdMu                = vdMu[iReset],
-        vdSD                = vdSD[iReset],
-        vdPercentZero       = vdPercentZero[iReset],
-        iNumberSamples     = int_number_samples,
-        iMinNumberCounts   = iMinNumberCounts,
-        iMinNumberSamples  = iMinNumberSamples,
-        vdTruncateThreshold = (c_iTimesSDIsOutlier*vdSD[iReset])+vdMu[iReset],
-        fZeroInflate       = fZeroInflate,
-        fVerbose           = fVerbose
-        )
-
-    # Update the matrix with the new feature
-    mat_bugs[iReset,] = lFeatureDetails$Feature
-    mat_bugs_basis[iReset,] = lFeatureDetails$Feature_base
-  }
+  # Create features
+  lFeatureDetails = funcMakeFeature(
+      vdMu                = vdMu,
+      vdSD                = vdSD,
+      vdPercentZero       = vdPercentZero,
+      mdLogCorr           = mdLogCorr,
+      iNumberSamples     = int_number_samples,
+      iMinNumberCounts   = iMinNumberCounts,
+      iMinNumberSamples  = iMinNumberSamples,
+      vdTruncateThreshold = (c_iTimesSDIsOutlier*vdSD)+vdMu,
+      fZeroInflate       = fZeroInflate,
+      fVerbose           = fVerbose
+      )
+  
+  # Need to transpose so that features are rows, columns are samples
+  mat_bugs = t(lFeatureDetails$Feature)
+  mat_bugs_basis = t(lFeatureDetails$Feature_base)
 
   #!# Remove
   plot(vdExp, funcGetRowMetric(mat_bugs,mean), main = "Expected vs Actual Read Depth: Initial")
@@ -1456,9 +1457,6 @@ fVerbose = FALSE
     }
   }
 
-  if (length(vdSD) == 1){
-    return(list(Feature = as.vector(mdFeature), Feature_base = as.vector(mdFeature_base), Exp = vdMean, ExpCal = vdExpCal, Exp_base = vdMean))
-  }
   return(list(Feature = mdFeature, Feature_base = mdFeature_base, Exp=vdMean, ExpCal = vdExpCal, Exp_base = vdMean))
 }
 
