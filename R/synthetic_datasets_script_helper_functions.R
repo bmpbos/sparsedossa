@@ -821,9 +821,11 @@ fVerbose = FALSE
   barplot(colSums(mat_bugs),main=paste("Before Read depth mean=",mean(colSums(mat_bugs))), xlab="Samples")
   abline(mean(colSums(mat_bugs)),0)
 
-  # Shuffle back in removed signal.
-  mat_bugs = funcShuffleMatrix(mtrxData=mat_bugs, iTargetReadDepth=iReadDepth)
-  plot(vdExp, funcGetRowMetric(mat_bugs,mean), main = "Expected vs Actual Read Depth: After Shuffle")
+  # Shuffle back in removed signal, but only if there are no bug-bug correlations that would be messed up
+  if (all(mdLogCorr[upper.tri(mdLogCorr)] == 0)){
+      mat_bugs = funcShuffleMatrix(mtrxData=mat_bugs, iTargetReadDepth=iReadDepth)
+      plot(vdExp, funcGetRowMetric(mat_bugs,mean), main = "Expected vs Actual Read Depth: After Shuffle")
+  }
 
   # Round to counts
   # This round method does not allow value produced lower then the minimal value 
