@@ -19,13 +19,12 @@ option_default = list(
     strNormalizedFileName = "SyntheticMicrobiome.pcl",
     strCountFileName = "SyntheticMicrobiome-Counts.pcl",
     parameter_filename = "SyntheticMicrobiomeParameterFile.txt",
-    variance_scale = "1",
     bugs_to_spike = 0,
     calibrate = NA,
     datasetCount = 1,
     read_depth = 8030,
     number_features = 300,
-    bugBugCoef = "0,0.5",
+    bugBugCorr = "0.5",
     spikeCount = "1",
     lefse_file = NULL,
     percent_spiked = 0.03,
@@ -47,18 +46,6 @@ option_default = list(
     runBugBug = FALSE)
 
 option_list = list(
-      make_option(
-          c("-a","--variance_scale"),
-          type="character",
-          default = option_default[['variance_scale']],
-          help=paste(
-              "Tuning parameters for noise in bug-bug associations",
-              "Non-negative values are expected",
-              "Multiple values should be comma-separated",
-              "Values will be recycled if the length doesn't match the number of associations",
-              sep=". "
-              )
-          ),
       make_option(
           c("-b","--bugs_to_spike"),
           type="integer",
@@ -90,15 +77,16 @@ option_list = list(
           help="The number of features per sample to create. A positive integer value is expected."
           ),
       make_option(
-          c("-g","--bugBugCoef"),
+          c("-g","--bugBugCorr"),
           type="character",
           default = option_default[['bugBugCoef']],
           help = paste(
-              "A vector of string separated values for the association coefficients for the bug-bug associations",
-              "At least two values, an intercept and slope, must be given",
-              "Values are comma-separated",
-              "Example: 0,0.5.",
-              sep=". "
+              "A vector of string separated values for the correlation ",
+              "values of the pairwise bug-bug associations. This ",
+              "is the correlation of the log-counts. ",
+              "Values are comma-separated; for example: ",
+              "0.7,0.5. Default is %default",
+              sep=""
               )
           ),
       make_option(
@@ -132,16 +120,6 @@ option_list = list(
           help=paste(
               "Minimum percent of measurements out of the total a level can have in a discontinuous metadata (Rounded up to the nearest count)",
               "A real number between 0 and 1 is expected.",
-              sep = ". "
-              )
-          ),
-      make_option(
-          c("-m","--max_domain_bugs"),
-          type="integer",
-          default=option_default[['max_domain_bugs']],
-          help=paste(
-              "Maximum number of bugs with which each correlated bug can be associated with",
-              "A positive integer greater than 0 is expected.",
               sep = ". "
               )
           ),
