@@ -1426,7 +1426,7 @@ fVerbose = FALSE
 ### If pdf logging of feaure should occur
 ){
   # If not zero inflated
-  if(!fZeroInflate){dPercentZero = 0}
+  if(!fZeroInflate){vdPercentZero = rep(0, length(vdMu))}
 
   # Check that vdLogMean and vdLogSD are same length
   if (length(vdMu) != length(vdSD)){
