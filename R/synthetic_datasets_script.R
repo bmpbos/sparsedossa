@@ -141,15 +141,20 @@ sparseDOSSA = function(
   }
 
   strBugBugCorr = bugBugCorr
-  vecBugBugCorr = as.vector(
-      sapply(
-          strsplit(strBugBugCorr,',')[[1]],
-          as.numeric
+  if (!is.null(strBugBugCorr)){
+      vecBugBugCorr = as.vector(
+          sapply(
+              strsplit(strBugBugCorr,',')[[1]],
+              as.numeric
+              )
           )
-      )
-  if( any(abs(vecBugBugCorr) >= 1 )){
-      stop("Correlation values must be between -1 and 1.")
+      if( any(abs(vecBugBugCorr) >= 1 )){
+          stop("Correlation values must be between -1 and 1.")
+      }
+  } else {
+      vecBugBugCorr <- 0
   }
+
   
   mtrxSpikeConfig = cbind( vdSpikeCount, vdSpikeStrength )
 
