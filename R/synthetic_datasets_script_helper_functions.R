@@ -705,6 +705,7 @@ dMinLevelPercent
 
 
 ### Not formally tested
+### Modified by ehs
 func_generate_random_lognormal_matrix = function(
 int_number_features,
 ### Number of features
@@ -724,6 +725,8 @@ vdPercentZero = NA,
 ### Vector of percent zero parameters for the original exp distribution (means of features) if not supplied, one will be generated
 vdSD = NA,
 ### Vector of SD parameters for the original exp distribution (means of features) if not supplied, one will be generated
+mdLogCorr = diag(int_number_features),
+### The correlation matrix of the logged distribution; default is a identity matrix with dimension int_number_features
 fZeroInflate = TRUE,
 ### Turns off Zero inflation if FALSE (default TRUE, zero inflation turned on)
 lSDRel = NA,
@@ -784,25 +787,23 @@ fVerbose = FALSE
 
   # Make features and assign feature samples to samples giving higher counts to lower read depth samples.
   print("func_generate_random_lognormal_matrix: START Making features")
-  for(iReset in 1:int_number_features)
-  {
-    # Create new feature
-    lFeatureDetails = funcMakeFeature(
-        dMu                = vdMu[iReset],
-        dSD                = vdSD[iReset],
-        dPercentZero       = vdPercentZero[iReset],
-        iNumberSamples     = int_number_samples,
-        iMinNumberCounts   = iMinNumberCounts,
-        iMinNumberSamples  = iMinNumberSamples,
-        dTruncateThreshold = (c_iTimesSDIsOutlier*vdSD[iReset])+vdMu[iReset],
-        fZeroInflate       = fZeroInflate,
-        fVerbose           = fVerbose
-        )
-
-    # Update the matrix with the new feature
-    mat_bugs[iReset,] = lFeatureDetails$Feature
-    mat_bugs_basis[iReset,] = lFeatureDetails$Feature_base
-  }
+  # Create features
+  lFeatureDetails = funcMakeFeature(
+      vdMu                = vdMu,
+      vdSD                = vdSD,
+      vdPercentZero       = vdPercentZero,
+      mdLogCorr           = mdLogCorr,
+      iNumberSamples     = int_number_samples,
+      iMinNumberCounts   = iMinNumberCounts,
+      iMinNumberSamples  = iMinNumberSamples,
+      vdTruncateThreshold = (c_iTimesSDIsOutlier*vdSD)+vdMu,
+      fZeroInflate       = fZeroInflate,
+      fVerbose           = fVerbose
+      )
+  
+  # Need to transpose so that features are rows, columns are samples
+  mat_bugs = t(lFeatureDetails$Feature)
+  mat_bugs_basis = t(lFeatureDetails$Feature_base)
 
   #!# Remove
   plot(vdExp, funcGetRowMetric(mat_bugs,mean), main = "Expected vs Actual Read Depth: Initial")
@@ -820,9 +821,11 @@ fVerbose = FALSE
   barplot(colSums(mat_bugs),main=paste("Before Read depth mean=",mean(colSums(mat_bugs))), xlab="Samples")
   abline(mean(colSums(mat_bugs)),0)
 
-  # Shuffle back in removed signal.
-  mat_bugs = funcShuffleMatrix(mtrxData=mat_bugs, iTargetReadDepth=iReadDepth)
-  plot(vdExp, funcGetRowMetric(mat_bugs,mean), main = "Expected vs Actual Read Depth: After Shuffle")
+  # Shuffle back in removed signal, but only if there are no bug-bug correlations that would be messed up
+  if (all(mdLogCorr[upper.tri(mdLogCorr)] == 0)){
+      mat_bugs = funcShuffleMatrix(mtrxData=mat_bugs, iTargetReadDepth=iReadDepth)
+      plot(vdExp, funcGetRowMetric(mat_bugs,mean), main = "Expected vs Actual Read Depth: After Shuffle")
+  }
 
   # Round to counts
   # This round method does not allow value produced lower then the minimal value 
@@ -1396,15 +1399,16 @@ iMin
 
 
 ### 3 Test 10/22/2013 (could do more)
+### modified by ehs
 funcMakeFeature = function(
 ### Create a feature given parameters
 ### Uses a zero inflated model if necessary
 ### Enforces a min number samples with signal if needed.
-dMu,
+vdMu,
 ### Mu of the rnorm distribution associate with the rlnorm draw that will occur, this will be logged
-dSD,
+vdSD,
 ### SD of the rnorm distribution associate with the rlnorm draw that will occur, this will be logged
-dPercentZero,
+vdPercentZero,
 ### Percent of zeros to add to the feature
 iNumberSamples,
 ### Number of measurements for the feature
@@ -1412,7 +1416,9 @@ iMinNumberCounts,
 ### Minimum number of counts to be considered signal
 iMinNumberSamples,
 ### Minimum number of samples needed to have signal. If this is not fulfilled, signal will be generated and added.
-dTruncateThreshold = NA,
+mdLogCorr = diag(length(vdSD)),
+### The correlation matrix of the logged distribution; default is a identity matrix with dimension length(vdLogSD)
+vdTruncateThreshold = NA,
 ### Threshold to truncate the underlying distribution
 fZeroInflate = TRUE,
 ### If the feature should be zero inflated
@@ -1420,31 +1426,40 @@ fVerbose = FALSE
 ### If pdf logging of feaure should occur
 ){
   # If not zero inflated
-  if(!fZeroInflate){dPercentZero = 0}
+  if(!fZeroInflate){vdPercentZero = rep(0, length(vdMu))}
 
-  # Expectation of the feature
-  dExpCal = funcGetExp(dMu,dSD)
+  # Check that vdLogMean and vdLogSD are same length
+  if (length(vdMu) != length(vdSD)){
+      stop("vdMu and vdSD must have equal length")
+  }
+  # Expectation of the features
+  vdExpCal = sapply(seq_along(vdMu), function(i) funcGetExp(vdMu[i],vdSD[i]))
 
-  # Generate feature
-  dFeature_base = func_zero_inflate(log(dMu), dPercentZero, iNumberSamples, log(dSD), dTruncateThreshold)
+  # Generate features
+  mdFeature_base = func_zero_inflate(vdLogMean = log(vdMu), vdPercentZeroInflated=vdPercentZero, int_number_samples=iNumberSamples, vdLogSD=log(vdSD), mdLogCorr=mdLogCorr, viThreshold=vdTruncateThreshold)
 
   # Update the distributions to the targeted expectations
-  dFeature = funcUpdateDistributionToExpectation( vdFeatures = dFeature_base, dExp = dExpCal )
+  mdFeature = matrix(NA, ncol=ncol(mdFeature_base), nrow=nrow(mdFeature_base))
+  for (k in seq_len(ncol(mdFeature))){
+    mdFeature[, k] = funcUpdateDistributionToExpectation(vdFeatures=mdFeature_base[, k], dExp = vdExpCal[k] )
+  }
 
   # Causes striation, update
-  dFeature = funcForceMinCountsInMinSamples( vdFeature = dFeature, iMinNumberCounts = iMinNumberCounts, iMinNumberSamples = iMinNumberSamples)
-  dFeature_base = funcForceMinCountsInMinSamples( vdFeature = dFeature_base, iMinNumberCounts = iMinNumberCounts, iMinNumberSamples = iMinNumberSamples )
+  mdFeature = apply(mdFeature, 2, funcForceMinCountsInMinSamples, iMinNumberCounts = iMinNumberCounts, iMinNumberSamples = iMinNumberSamples)
+  mdFeature_base = apply(mdFeature_base, 2, funcForceMinCountsInMinSamples, iMinNumberCounts = iMinNumberCounts, iMinNumberSamples = iMinNumberSamples )
 
   # Extra useful measurements, the true and expected means
-  dMean = mean(dFeature)
-  dMean_base = mean(dFeature_base)
+  vdMean = apply(mdFeature, 2, mean)
+  vdMean_base = apply(mdFeature_base, 2, mean)
 
   if(fVerbose)
   {
-    plot( dFeature, main = paste("funcMakeFeature","Mean (",round(dMu,2),")",round(dMean,2),"SD(",round(dSD,2),")",round(sd(log(dFeature[which(dFeature>0)])),2),"Exp",round(dExpCal,2)))
+    for ( k in seq_len( ncol(mdFeature) ) ){
+      plot( mdFeature[, k], main = paste("funcMakeFeature","Mean (",round(vdMu[k],2),")",round(vdMean[k],2),"SD(",round(vdSD[k],2),")",round(sd(log(mdFeature[which(mdFeature[, k]>0), k])),2),"Exp",round(vdExpCal[k],2)))
+    }
   }
 
-  return(list(Feature = dFeature, Feature_base = dFeature_base, Exp = dMean, ExpCal = dExpCal, Exp_base = dMean))
+  return(list(Feature = mdFeature, Feature_base = mdFeature_base, Exp=vdMean, ExpCal = vdExpCal, Exp_base = vdMean))
 }
 
 
@@ -1894,26 +1909,38 @@ fZeroInflated = TRUE
 
 ### 6 Tests 10-22-2013
 ### Modified by bor
+### Modified by ehs
 funcTruncatedRLNorm = function(
 ### Return draws from a random log normal distribution with a truncated tail so outliers are not introduced.
 iNumberMeasurements,
 ### The number of measurements for this distribution
-dLogMean,
+vdLogMean,
 ### The mean of the logged distribution
-dLogSD,
+vdLogSD,
 ### The SD of the logged distribution
-iThreshold = NA
+mdLogCorr = diag(length(vdLogSD)),
+### The correlation matrix of the logged distribution; default is a identity matrix with dimension length(vdLogSD)
+viThreshold = NA
 ### The value used to define outliers. 
 ){
-  # Get truncated normal distribution
-  vdFeature = c()
-  for( i in 1:iNumberMeasurements ){
-    dFeature = rlnorm( 1, dLogMean, dLogSD )
-    while( dFeature > iThreshold ){
-      dFeature = rlnorm( 1, dLogMean, dLogSD )
-    }
-    vdFeature = c( vdFeature, dFeature )
+  # Check that vdLogMean and vdLogSD are same length
+  if (length(vdLogMean) != length(vdLogSD)){
+      stop("vdLogMean and vdLogSD must have equal length")
   }
+  # Get truncated normal distribution with rows=samples, cols=features
+  mdFeature = matrix(NA, nrow=iNumberMeasurements, ncol=length(vdLogSD))
+  mdLogSD = diag(x=vdLogSD, nrow=length(vdLogSD))
+  mdLogVar = mdLogSD %*% mdLogCorr %*% mdLogSD
+  for( i in 1:iNumberMeasurements ){
+    vdFeature = as.vector(exp(mvtnorm::rmvnorm(1, vdLogMean, mdLogVar)))
+#    dFeature = rlnorm( 1, dLogMean, dLogSD )
+    while( any(vdFeature > viThreshold) ){
+      vdFeature = as.vector(exp(mvtnorm::rmvnorm( 1, vdLogMean, mdLogVar )))
+    }
+    mdFeature[i, ] = vdFeature
+    #vdFeature = c( vdFeature, dFeature )
+  }
+#  if (ncol(mdFeature)==1) return(as.vector(mdFeature))
   #vdFeature = rlnorm( iNumberMeasurements, dLogMean, dLogSD )
 
   # If a value is given to truncate outliers
@@ -1939,7 +1966,7 @@ iThreshold = NA
   #Truncate negatives to zero
   #vdFeature[ vdFeature < 0 ] = 0
 
-  return( vdFeature )
+  return( mdFeature )
 ### vdFeature: The signal (optionally truncated, log normal distribution)
 }
 
@@ -2046,35 +2073,45 @@ iTargetSum
 
 
 # 9 Tests 10/22/2013
+### Modified by ehs
 func_zero_inflate = function(
 ### Create a zero inflated log normal distribution with a specified mean and percentage of zeros.
 ### If you want to get the original values of mu and sd used in rlnorm, use mean(log(func_zero_inflate()))
 ### and sd(log(func_zero_inflate()))
-dLogMean,
+vdLogMean,
 ### Mean of the distribution (logged)
-dPercentZeroInflated,
+vdPercentZeroInflated,
 ### Percentage of return which is zero
 int_number_samples,
 ### The number of samples to create
-dLogSD,
+vdLogSD,
 ### The sd of the distribution (logged)
-iThreshold = NA
+mdLogCorr = diag(length(vdLogSD)),
+### The correlation matrix of the logged distribution; default is a identity matrix with dimension length(vdLogSD)
+viThreshold = NA
 ### The threshold for outliers
 ){
-  # Get feature given distribution parameters
-  vdFeature = funcTruncatedRLNorm( int_number_samples, dLogMean, dLogSD, iThreshold = iThreshold )
+  # Get feature given distribution parameters; returns matrix with rows=samples, cols=features
+  mdFeature = funcTruncatedRLNorm( int_number_samples, vdLogMean, vdLogSD, mdLogCorr = mdLogCorr, viThreshold = viThreshold )
 
   # Zero inlate
   # modified by bor
-  viZeroLocations = as.logical( rbinom( int_number_samples, 1, dPercentZeroInflated ) )
-  vdFeature[viZeroLocations] = 0
+  miZeroLocations = as.logical( sapply( vdPercentZeroInflated, rbinom, n=int_number_samples, size=1 ) )
+  mdFeature[miZeroLocations] = 0
   
-  if( sum( vdFeature ) == 0 ){
-    vdFeature[sample(1:length(vdFeature),1)] = 1
+  if( any(colSums( mdFeature ) == 0 ) ){
+    zero_cols <- which( colSums( mdFeature ) == 0 )
+    one_rows  <- sample( ncol(mdFeature), length(zero_cols) )
+    for ( k in seq_along( zero_cols ) ){
+        mdFeature[one_rows[k], zero_cols[k]] = 1
+    }
+#    vdFeature[sample(1:length(vdFeature),1)] = 1
   }
+
+#  if (ncol(mdFeature)==1) return(as.vector(mdFeature))
   #viZeroLocations = funcSample( 1:int_number_samples, floor( int_number_samples * dPercentZeroInflated ), replace = FALSE )
   #if( length( viZeroLocations ) ){ vdFeature[ viZeroLocations ] = 0 }
 
   # Return zero-inflated truncated lognormal feature
-  return( vdFeature )
+  return( mdFeature )
 }

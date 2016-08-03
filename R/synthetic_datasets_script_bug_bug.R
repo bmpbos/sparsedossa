@@ -25,369 +25,116 @@ c_strMuVector = "Mu vector (of normal):"
 c_strNoiseScaling  = "Scaling parameter for variance of noise:"
 c_strNumberDatasets = "Number of datasets generated:"
 c_strNumberOfAssociations = "Number of associations (bugs correlated with others):"
+c_strLogCorrValues = "Specified correlation values of the log-counts:"
 c_strDirOfAssociations    = "Direction of associations:"
 c_strPercentZeroVector = "Percent zeros vector:"
 c_strSDVector = "SD vector (of normal):"
 
-func_get_corr_indices = function(
-### A function to obtain the indices of the range and domain bugs
-iNumAssociations,
-### The number of associations to generate
-iMaxDomainNumber,
-### The maximum number of features with which one feature can be correlated
-iNumFeatures
-### The total number of features
-){
+#' A function to generate a bug-bug correlation matrix with a
+#'     fixed number of spikes.
+#'
+#' @param num_features is the number of features in the dataset
+#'     (so the dimension of the correlation matrix)
+#' @param num_spikes is the number of non-zero correlations to
+#'     generate
+#' @param log_corr_values is a scalar or vector of correlation values. If
+#'     one value, all spikes will have that correlation value. If a vector
+#'     of length > \code{num_features}, it will be sampled without
+#'     replacement. If a vector of length < \code{num_features}, it will be
+#'     recycled.
+func_get_log_corr_mat_from_num <- function(num_features, num_spikes,
+                                           log_corr_values){
+  print("start func_get_corr_mat_from_num")
+  if (length(log_corr_values) == 1){
+      log_corr_values <- rep(log_corr_values, num_spikes)
+  } else if (length(log_corr_values) > num_features){
+      log_corr_values <- sample(log_corr_values, num_spikes)
+  } else if (length(log_corr_values) < num_features){
+      log_corr_values_rep <- rep(log_corr_values,
+                             ceiling(num_spikes / length(log_corr_values)))
+      log_corr_values <- log_corr_values_rep[1:num_spikes]
+  }
+  
+  if (num_spikes >= num_features){
+      stop(paste0("num_spikes (", num_spikes, ") >= num_features (",
+                  num_features, "); cannot spike any association"))
+  }
 
-  print("start func_get_corr_indices")
+  if (num_spikes > 0){
+    domain_features <- sample(num_features, num_spikes)
+    possible_range_features <- setdiff(seq_len(num_features), domain_features)
+  
+    range_features <- sample(possible_range_features, num_spikes)
 
-  # We can choose any index to begin with
-  possibleIndices = seq(1,iNumFeatures)
+    log_corr_mat <- func_generate_spike_structure(
+        range_features=range_features,
+        domain_features=domain_features,
+        num_features=num_features,
+        log_corr_values=log_corr_values
+        )
 
-  viIdxCorrRangeBugs = sample(possibleIndices,iNumAssociations)
-  possibleIndices = setdiff(possibleIndices,viIdxCorrRangeBugs)
-
-  # Initialize the holder for the domain indices
-  liIdxCorrDomainBugs = vector("list",iNumAssociations)
-  if(length(possibleIndices) < iNumAssociations){
-
-    iNumAssociations.trunc <- floor(iNumFeatures/2)
-    warning( paste( "The number of features",iNumFeatures,
-                    "is insufficient to make",iNumAssociations,
-                    "associations.  Making the maximum possible associations:",iNumAssociations.trunc ) )
-
-    # Generate the maximum possible associations
-    possibleIndices     <- seq(1,iNumFeatures)
-    viIdxCorrRangeBugs  <- sample(possibleIndices,iNumAssociations.trunc)
-    possibleIndices     <- setdiff(possibleIndices, viIdxCorrRangeBugs)
-    liIdxCorrDomainBugs <- as.list( sample(possibleIndices,iNumAssociations.trunc) )
-
+    range_vec <- unique(range_features)
+    ss <- lapply(range_vec, function(r){
+        list(domain=domain_features[range_features==r],
+             range=r,
+             log_corr_values=log_corr_values[range_features==r])
+    })
+    domain_features_list <- lapply(ss, '[[', 'domain')
+    log_corr_values_list <- lapply(ss, '[[', "log_corr_values")
+    
+    num_domain_features_str <-
+        func_list_to_str(lapply(domain_features_list, length))
+    range_features_str <- paste(range_vec, collapse="; ")
+    domain_features_str <- func_list_to_str(domain_features_list)
+    assoc_dir_str <- func_list_to_str(lapply(log_corr_values_list, sign))
+    log_corr_values_str <- func_list_to_str(log_corr_values_list)
+    
+    to_return <- list(mdLogCorr=log_corr_mat, RangeBugs=range_features,
+                      DomainBugs=domain_features)
   } else {
-
-    # The current association number and number of associations remaining
-    iAssociation   <- 1 
-    iNumAssociationsRemaining <- iNumAssociations
-
-    while( length(possibleIndices) > iNumAssociationsRemaining && iAssociation <= iNumAssociations){
-
-      iNumDomainBugs <- sample( seq( 1,
-                                     min( iMaxDomainNumber,
-                                          length(possibleIndices) ) ),
-                                1 )
-      liIdxCorrDomainBugs[[iAssociation]] <- sample(possibleIndices,iNumDomainBugs)
-      possibleIndices                     <- setdiff(possibleIndices,liIdxCorrDomainBugs[[iAssociation]])
-      iAssociation                        <- iAssociation + 1
-      iNumAssociationsRemaining           <- iNumAssociationsRemaining - 1
-
-    }
-
-    if( iAssociation <= iNumAssociations ){
-
-      warning( paste( "Only generated", iNumAssociations - iNumAssociationsRemaining, 
-                      "associations with random numbers of domain bugs.  The remaining",iNumAssociationsRemaining,
-                      "associations will have 1 domain bug" ) )
-
-      if( length(possibleIndices) < iNumAssociationsRemaining ){
-
-        iAssociation    <- iAssociation - 1
-        possibleIndices <- c(possibleIndices,liIdxCorrDomainBugs[[iAssociation]])
-      }
-
-      for( i in iAssociation:iNumAssociations ){
-        liIdxCorrDomainBugs[[i]] <- sample(possibleIndices,1)
-        possibleIndices          <- setdiff(possibleIndices,liIdxCorrDomainBugs[[i]])
-      }
-    }
+    to_return <- list(mdLogCorr=diag(num_features))
+    num_domain_features_str <- "NA"
+    range_features_str <- "NA"
+    domain_features_str <- "NA"
+    assoc_dir_str <- "NA"
+    log_corr_values_str <- "NA"
   }
+  param_list <- list(strNumberCorrDomainBugs=num_domain_features_str,
+                     strIdxCorrRangeBugs=range_features_str,
+                     strIdxCorrDomainBugs=domain_features_str,
+                     strDirAssociations=assoc_dir_str,
+                     strLogCorrValues=log_corr_values_str)
 
-  print("stop func_get_corr_indices")
-
-  return( list( RangeBugs  = viIdxCorrRangeBugs,
-                DomainBugs = liIdxCorrDomainBugs ) )
+  return(c(to_return, param_list))
+  print("end func_get_corr_mat_from_num")
 }
 
-func_linear_association = function(
-### A function to spike in positive linear bug-bug associations
-dfeatures.x,
-### The data for the independent features (as a matrix; rows are features)
-dIntercept,
-### The intercept parameter for the relationship
-vdSlope,
-### The slope parameter(s) for the relationship, as a vector
-### Elements are recycled if there are fewer than 1 per feature
-dVarScale
-### The scaling parameter for the variance
-){
-   if(is.matrix(dfeatures.x)) {
-      n.features <- nrow(dfeatures.x)
-      if( length(vdSlope) < n.features )
-          vdSlope <- rep( vdSlope,ceiling( n.features/length( vdSlope ) ) )
-      
-      vdfeature.y <- dIntercept +
-                     apply(vdSlope[1:n.features]*dfeatures.x,
-                           2,
-                           sum
-                           ) +
-                     rnorm(nrow(dfeatures.x),
-                           0,
-                           sqrt(dVarScale * sum( apply( dfeatures.x,1,var ) ) )
-                           )
-      vdfeature.y[which(vdfeature.y < 0)] = 0
-      vdSlopeUsed <- vdSlope[1:n.features]
-   } else {
-     vdfeature.y <- dIntercept + vdSlope[1] * dfeatures.x + rnorm(length(dfeatures.x),0,sqrt(dVarScale*var(dfeatures.x)))
-     vdSlopeUsed <- vdSlope[1]
-     vdfeature.y[which(vdfeature.y < 0)] = 0
-   }
-   dir <- 2*as.numeric(vdSlopeUsed > 0) - 1
-   
-   return( list(vdfeature.y = vdfeature.y,
-                dir         = dir) )
+#' Convert a list of vectors into an appropriately-delimited single string
+#'
+#' @param mylist A list of vectors
+func_list_to_str <- function(mylist){
+    list_elts <- unlist(lapply(mylist, paste, collapse=","))
+    paste(list_elts, collapse="; ")
 }
 
-func_rounded_linear_association = function(
-### A function to spike in positive linear bug-bug associations
-dfeatures.x,
-### The data for the independent features (as a matrix; rows are features)
-dIntercept,
-### The intercept parameter for the relationship
-vdSlope,
-### The slope parameter(s) for the relationship, as a vector
-### Elements are recycled if there are fewer than 1 per feature
-dVarScale
-### The scaling parameter for the variance
-){
-   if(is.matrix(dfeatures.x)) {
-      n.features <- nrow(dfeatures.x)
-      if( length(vdSlope) < n.features ){
-          vdSlope <- rep( vdSlope,ceiling( n.features/length( vdSlope ) ) )
-      }
-      vdfeature.y <- dIntercept +
-                     apply(vdSlope[1:n.features]*dfeatures.x,
-                           2,
-                           sum
-                           ) +
-                     rnorm(nrow(dfeatures.x),
-                           0,
-                           sqrt(dVarScale * sum( apply( dfeatures.x,1,var ) ) )
-                           )
-      vdfeature.y[which(vdfeature.y < 0)] = 0
-      vdSlopeUsed <- vdSlope[1:n.features]
-   } else {
-     vdfeature.y <- dIntercept + vdSlope[1] * dfeatures.x + rnorm(length(dfeatures.x),0,sqrt(dVarScale*var(dfeatures.x)))
-     vdSlopeUsed <- vdSlope[1]
-     vdfeature.y[which(vdfeature.y < 0)] = 0
-   }
-   vdfeature.y.rounded <- round(vdfeature.y)
-   dir <- 2*as.numeric(vdSlopeUsed > 0) - 1
-   
-   return( list(vdfeature.y = vdfeature.y.rounded,
-                dir         = dir) )
-}
-
-### Not formally tested                                                                                                                                                                                          
-func_generate_bug_bug_spikes = function(
-### Add spiked bug-bug correlations
-mtrxData,
-### The matrix into which to spike the associations
-vdVarScale,
-### The scaling parameters for the VARIANCE (the noise added will have variance dVarScale*var(bug))
-funcAssociation,
-### The function to be used to generate the association; takes two bugs and the variance scaling parameter
-lAssociationParams,
-### The possible extra parameters for the association function
-viIdxCorrRangeBugs,
-### row indices of the range bugs as a vector
-liIdxCorrDomainBugs,
-### The row indices of the domain bugs, arranged as a list
-iMaxDomainNumber,
-### The maximum number of features with which one feature can be correlated
-vdPercentZero = NA,
-### Vector of percent zero parameters for features if not supplied, one will be generated by rlnorm
-fZeroInflate = TRUE,
-### Controls if zero inflation is used.
-fVerbose = FALSE
-### If true, plotting and logging occur
-){
-  print("start func_generate_bug_bug_spikes")
-
-  # Define some parameters                                                                                                                                                                                      
-  iNumAssociations           <- length( liIdxCorrDomainBugs )
-  iNumAssociationsToGenerate <- 0
-  iNumFeatures               <- nrow( mtrxData )
-  viNumberCorrDomainBugs     <- unlist( lapply( liIdxCorrDomainBugs, "length" ) )
-
-
-  # Some generic error reporting                                                                                                                                                                                 
-  strWarning = "No correlation was added to the bug-bug correlation matrix."
-
-  if( length(viIdxCorrRangeBugs) < iNumAssociations ){
-    print(paste( "Number of range relationships ",
-                 length(viIdxCorrRangeBugs),
-                 " is less than the number of domain relationships ",
-                 iNumAssociations,
-                 ". ",
-                 strWarning,
-                 sep="" ))
-    iNumAssociations = 0
-  }
-  if( length(viIdxCorrRangeBugs) > iNumAssociations ){
-    print(paste( "Number of range relationships ",
-                 length(viIdxCorrRangeBugs),
-                 " is greater than the number of domain relationships ",
-                 iNumAssociations,
-                 ". ", strWarning,
-                 sep="" ))
-    iNumAssociationsToGenerate <- length(viIdxCorrRangeBugs) - iNumAssociations
-  }
-  if( min(viNumberCorrDomainBugs) <=0 ){
-    print(paste( "Some number of domain bugs", min(viNumberCorrDomainBugs), "is not possible.", strWarning ))
-    iNumAssociations = 0
-  }
-  if( sum(vdVarScale < 0)>0 ){
-    paste( "Some of the variance scale parameters,",toString(vdVarScale),", are < 0. ", strWarning, sep="" )
-    iNumAssociations = 0
-  }
-  if( iNumAssociations > floor(iNumFeatures/2) ){
-     print(paste( iNumAssociations,"associations cannot be formed with only", iNumFeatures,
-                  "features: The number of associations must be less than half the number of features" ) )
-    iNumAssociations = 0
+#' Generate the spike structure as a list, and the correlation matrix
+#'
+#' @param range_features A vector of features which will be replaced with
+#'   spiked data
+#' @param domain_features A vector which contains the features that will be
+#'   used to generate the spiked data
+#' @inheritParams func_generate_spike_structure_from_num
+#' 
+func_generate_spike_structure <- function(range_features, domain_features,
+                                          num_features,
+                                          log_corr_values){
+  print("start func_generate_spike_structure")
+  log_corr_mat <- diag(num_features)
+  for (s in seq_along(range_features)){
+    log_corr_mat[range_features[s],  domain_features[s]] <- log_corr_values[s]
+    log_corr_mat[domain_features[s], range_features[s]]  <- log_corr_values[s]
   }
 
-  if(iNumAssociations > 0){
-    ## Converting vectors and lists to appropriately delimited strings                                                                                                                                           
-    strNumberCorrDomainBugs = paste(viNumberCorrDomainBugs[1])
-    if(length(viNumberCorrDomainBugs)>1){
-
-      for(k in 2:length(viNumberCorrDomainBugs)){
-        strNumberCorrDomainBugs = paste(strNumberCorrDomainBugs,viNumberCorrDomainBugs[k],sep='; ')
-      }
-
-    }
-
-    strIdxCorrRangeBugs = paste(viIdxCorrRangeBugs[1])
-    if(length(viIdxCorrRangeBugs)>1){
-      for(k in 2:length(viIdxCorrRangeBugs)){
-        strIdxCorrRangeBugs = paste(strIdxCorrRangeBugs,viIdxCorrRangeBugs[k],sep='; ')
-      }
-    }
-
-    strIdxCorrDomainBugs = toString(liIdxCorrDomainBugs[[1]])
-    if(length(liIdxCorrDomainBugs) > 1){
-      for(k in 2:length(liIdxCorrDomainBugs)){
-        strIdxCorrDomainBugs = paste(strIdxCorrDomainBugs,toString(liIdxCorrDomainBugs[[k]]),sep='; ')
-      }
-    }
-
-    strVarScale = paste(vdVarScale[1])
-    if(length(vdVarScale)>1){
-        for(k in 2:length(vdVarScale)){
-            strVarScale = paste(strVarScale,vdVarScale[k],sep="; ")
-        }
-    }
-
-    lDirAssociations = vector("list",iNumAssociations)
-    ## End converting to strings                                                                                                                                                                                 
-
-    ## Generate each association
-    if(length(vdVarScale) < iNumAssociations){
-        vdVarScale <- rep(vdVarScale,ceiling( iNumAssociations/length(vdVarScale) ))
-    }
-    mtrx_final <- mtrxData
-
-    for(i in seq(1,iNumAssociations)){
-        
-      lAssociationParams$dVarScale     <- vdVarScale[i]
-      lAssociationParams$dfeatures.x   <- mtrxData[ liIdxCorrDomainBugs[[ i ]], ]
-      vdfeature.y                      <- do.call( what = funcAssociation,
-                                                   args = lAssociationParams )
-
-      if( is.matrix(lAssociationParams$dfeatures.x) ){
-        for(k in 1:nrow(lAssociationParams$dfeatures.x)){
-          plot(
-              vdfeature.y$vdfeature.y,
-              lAssociationParams$dfeatures.x[k,],
-              main = paste(
-                  "Association of features",
-                  viIdxCorrRangeBugs[i],
-                  "and",
-                  liIdxCorrDomainBugs[[i]][k]
-                  ),
-              ylab = paste(
-                  "Feature",
-                  viIdxCorrRangeBugs[i]
-                  ),
-              xlab = paste(
-                  "Feature",
-                  liIdxCorrDomainBugs[[i]][k]
-                  )
-              )
-        }
-      } else {
-        plot(
-            vdfeature.y$vdfeature.y,
-            lAssociationParams$dfeatures.x,
-            main = paste(
-                "Association of features",
-                viIdxCorrRangeBugs[i],
-                "and",
-                liIdxCorrDomainBugs[[i]]
-                ),
-            ylab = paste(
-                "Feature",
-                viIdxCorrRangeBugs[[i]]
-                ),
-            xlab = paste(
-                "Feature",
-                liIdxCorrDomainBugs[[i]]
-                )
-            )
-      }
-
-      mtrx_final[viIdxCorrRangeBugs[i],] <- vdfeature.y$vdfeature.y 
-      lDirAssociations[[i]] = vdfeature.y$dir
-    }
-
-    strDirAssociations = toString(lDirAssociations[[1]])
-    if(length(lDirAssociations) > 1){
-        for(k in 2:length(lDirAssociations)){
-            strDirAssociations = paste(strDirAssociations,toString(lDirAssociations[[k]]),sep="; ")
-        }
-    }
-    ## End generating associations                                                                                                                                                                               
-
-  } else {
-    viNumberCorrDomainBugs = NA
-    viIdxCorrRangeBugs     = NA
-    liIdxCorrDomainBugs    = NA
-    lDirAssociations       = NA
-
-    strNumberCorrDomainBugs = "NA"
-    strIdxCorrRangeBugs     = "NA"
-    strIdxCorrDomainBugs    = "NA"
-    strDirAssociations      = "NA"
-
-    mtrx_final <- mtrxData
-  }
-
-  # This will hold the associations that you create and be placed in the truth file that is records association spike-ins for later assessment                                                                   
-  # It starts with the name of the microbiome you are creating                                                                                                                                                   
-  # Parameters of interest and then your feature associations                                                                                                                                                    
-  mtrxParameters = matrix(data=NA, nrow=10, ncol=1)
-
-  mtrxParameters[1,1]  = paste(c_strSyntheticMicrobiome,   c_strBugBugAssociations, sep='')
-  mtrxParameters[2,1]  = paste(c_strNumberOfFeatures,      iNumFeatures)
-  mtrxParameters[3,1]  = paste(c_strNumberOfSamples,       ncol(mtrxData))
-  mtrxParameters[4,1]  = paste(c_strNoiseScaling,          strVarScale )
-  mtrxParameters[5,1]  = paste(c_strNumberOfAssociations,  iNumAssociations )
-  mtrxParameters[6,1]  = paste(c_strMaxCorrDomainBugs,     iMaxDomainNumber )
-  mtrxParameters[7,1]  = paste(c_strCorrDomainBugs,        strNumberCorrDomainBugs )
-  mtrxParameters[8,1]  = paste(c_strCorrRangeBugsIdx,      strIdxCorrRangeBugs )
-  mtrxParameters[9,1]  = paste(c_strCorrDomainBugsIdx,     strIdxCorrDomainBugs )
-  mtrxParameters[10,1] = paste(c_strDirOfAssociations,     strDirAssociations )
-
-  print("stop func_generate_bug_bug_spikes")
-
-  return(list( mtrxAssnParameters = mtrxParameters,
-               mat_bugs           = mtrx_final))
+  print("end func_generate_spike_structure")
+  return(log_corr_mat)
 }

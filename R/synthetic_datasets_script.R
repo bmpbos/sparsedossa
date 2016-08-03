@@ -48,18 +48,16 @@ sparseDOSSA = function(
 		strNormalizedFileName = option_default[['strNormalizedFileName']],
 		strCountFileName = option_default[['strCountFileName']],
 		parameter_filename = option_default[['parameter_filename']],
-		variance_scale = option_default[['variance_scale']],
 		bugs_to_spike = option_default[['bugs_to_spike']],
 		calibrate = option_default[['calibrate']],
 		datasetCount = option_default[['datasetCount']],
 		read_depth = option_default[['read_depth']],
 		number_features = option_default[['number_features']],
-		bugBugCoef =  option_default[['bugBugCoef']],
+		bugBugCorr =  option_default[['bugBugCorr']],
 		spikeCount = option_default[['spikeCount']],
 		lefse_file = option_default[['lefse_file']],
 		percent_spiked = option_default[['percent_spiked']],
 		minLevelPercent = option_default[['minLevelPercent']],
-		max_domain_bugs = option_default[['max_domain_bugs']],
 		number_samples = option_default[['number_samples']], 
 		max_percent_outliers = option_default[['max_percent_outliers']],
 		number_metadata = option_default[['number_metadata']],
@@ -100,21 +98,6 @@ sparseDOSSA = function(
   iNumAssociations = bugs_to_spike
   if(iNumAssociations<0) stop("Please provide a number of associations (bug-bug correlation) greater than or equal to 0")
 
-  strVarScale = variance_scale
-  vdVarScale = as.vector(
-      sapply(
-          strsplit(strVarScale,',')[[1]],
-          as.numeric
-          )
-      )
-  if(sum(vdVarScale<0)>0) stop("Please provide variance scaling parameters greater than or equal to 0.")
-
-  iMaxNumberCorrDomainBugs = max_domain_bugs
-  if(iMaxNumberCorrDomainBugs<0) stop("Please provide a maximum number of domain features greater than or equal to 0")
-  if(iMaxNumberCorrDomainBugs==0){
-    iNumAssociations <-0
-    warning("The maximum number of domain features is 0: setting the number of bug-bug associations to 0")
-  }
 
   iNumberDatasets = datasetCount
   if(iNumberDatasets<1) stop("Please provide a number of datasets which is at least 1.")
@@ -157,15 +140,15 @@ sparseDOSSA = function(
     }
   }
 
-  strBugBugCoef = bugBugCoef
-  vecBugBugCoef = as.vector(
+  strBugBugCorr = bugBugCorr
+  vecBugBugCorr = as.vector(
       sapply(
-          strsplit(strBugBugCoef,',')[[1]],
+          strsplit(strBugBugCorr,',')[[1]],
           as.numeric
           )
       )
-  if( length(vecBugBugCoef)<2 ){
-      stop("Please provide both an integer and a slope value for the coefficients")
+  if( any(abs(vecBugBugCorr) >= 1 )){
+      stop("Correlation values must be between -1 and 1.")
   }
   
   mtrxSpikeConfig = cbind( vdSpikeCount, vdSpikeStrength )
@@ -352,17 +335,7 @@ sparseDOSSA = function(
 
   if(fRunBugBug){
 
-    # Get the association type and the coefficients
-    if( strAssociationType =="linear" ){
-        funcAssociation = func_linear_association
-    } else if (strAssociationType == "rounded_linear"){
-        funcAssociation = func_rounded_linear_association
-    }
-    lAssociationParams = list(
-        dIntercept = vecBugBugCoef[1],
-        vdSlope     = vecBugBugCoef[-1]
-        )
-
+    v_log_corr_values = vecBugBugCorr
       
     # Get the fitted values for calibrating rlnorm
     vdExp = NA
@@ -411,6 +384,7 @@ sparseDOSSA = function(
                                                           fVerbose            = fVerbose)
 
 
+    
     # Update the Mu, SD and Percent zero bugs and report on distributions                                                                                                                                          
     vdMu = lsInitialDistribution[["mu"]]
     vdSD = lsInitialDistribution[["sd"]]
@@ -427,13 +401,9 @@ sparseDOSSA = function(
 
 
     # Get the indices for the associations
-    lsAssociationIdx = func_get_corr_indices( iNumAssociations = iNumAssociations,
-                                              iMaxDomainNumber = iMaxNumberCorrDomainBugs,
-                                              iNumFeatures     = int_number_features )
-
-    # Update the parameters
-    viIdxCorrRangeBugs  = lsAssociationIdx[["RangeBugs"]]
-    liIdxCorrDomainBugs = lsAssociationIdx[["DomainBugs"]]
+    lsAssociations = func_get_log_corr_mat_from_num(
+        num_features = int_number_features,
+        num_spikes=iNumAssociations, log_corr_values=v_log_corr_values)
 
     # Flag to add the parameters only once, since the datasets are iid                                              
     fAddedParameters    = FALSE
@@ -444,90 +414,63 @@ sparseDOSSA = function(
       pdf(file.path(dirname(strCountFileName),paste("FuncGenerateRLNormBugBug_d_",iDataset,".pdf",sep="")), useDingbats=FALSE)
 
 
-      mat_random_lognormal_bugs = func_generate_random_lognormal_matrix( int_number_features = int_number_features, 
-                                                                         int_number_samples  = int_number_samples, 
-                                                                         iMinNumberCounts    = dMinOccurenceCount, 
-                                                                         iMinNumberSamples   = dMinOccurenceSample, 
-                                                                         iReadDepth          = iReadDepth, 
-                                                                         vdExp               = vdExp, 
-                                                                         vdMu                = vdMu, 
-                                                                         vdPercentZero       = vdPercentZero, 
-                                                                         vdSD                = vdSD, 
-                                                                         fZeroInflate        = fZeroInflate, 
-                                                                         lSDRel              = list(BetaSD=c_dSDBeta, InterceptSD=c_dSDIntercept), 
-                                                                         lPercentZeroRel     = list( InterceptZero = c_dInterceptZero, 
-                                                                                                     BetaZero      = c_dBetaZero, 
-                                                                                                     Scale         = scalePercentZeros), 
-                                                                         dBetaGrandSD        = c_dBetaGrandSD, 
-                                                                         fVerbose            = fVerbose )
+      mat_random_lognormal_bugs = func_generate_random_lognormal_matrix(
+          int_number_features = int_number_features, 
+          int_number_samples  = int_number_samples, 
+          iMinNumberCounts    = dMinOccurenceCount, 
+          iMinNumberSamples   = dMinOccurenceSample, 
+          iReadDepth          = iReadDepth, 
+          vdExp               = vdExp, 
+          vdMu                = vdMu, 
+          vdPercentZero       = vdPercentZero, 
+          vdSD                = vdSD,
+          mdLogCorr           = lsAssociations[["mdLogCorr"]],
+          fZeroInflate        = fZeroInflate, 
+          lSDRel              = list(BetaSD=c_dSDBeta, InterceptSD=c_dSDIntercept), 
+          lPercentZeroRel     = list( InterceptZero = c_dInterceptZero, 
+              BetaZero      = c_dBetaZero, 
+              Scale         = scalePercentZeros), 
+          dBetaGrandSD        = c_dBetaGrandSD, 
+          fVerbose            = fVerbose )
 
       if( !fAddedParameters ){
         vParametersAssociations = c(vParametersAssociations,
                                     mat_random_lognormal_bugs[["mtrxBasisParameters"]],
                                     paste(c_strNumberDatasets,iNumberDatasets))
-        fAddedParameters==TRUE
+        parameter_mat <- matrix(NA, nrow=9, ncol=1)
+
+        parameter_mat[1,1]  <- paste0(c_strSyntheticMicrobiome,
+                                     c_strBugBugAssociations)
+        parameter_mat[2,1]  <- paste(c_strNumberOfFeatures,
+                                     int_number_features)
+        parameter_mat[3,1]  <- paste(c_strNumberOfSamples,
+                                     int_number_samples)
+        parameter_mat[4,1]  <- paste(c_strNumberOfAssociations,
+                                     iNumAssociations )
+        parameter_mat[5,1]  <-
+            paste(c_strCorrDomainBugs,
+                  lsAssociations[["strNumberCorrDomainBugs"]])
+        parameter_mat[6,1]  <-
+            paste(c_strCorrRangeBugsIdx,
+                  lsAssociations[["strIdxCorrRangeBugs"]] )
+        parameter_mat[7,1]  <-
+            paste(c_strCorrDomainBugsIdx,
+                  lsAssociations[["strIdxCorrDomainBugs"]] )
+        parameter_mat[8,1] <-
+            paste(c_strDirOfAssociations,
+                  lsAssociations[["strDirAssociations"]] )
+        parameter_mat[9, 1] <-
+            paste(c_strLogCorrValues,
+                  lsAssociations[["strLogCorrValues"]])
+
+        vParametersAssociations = c(vParametersAssociations, parameter_mat)
+        fAddedParameters=TRUE
       }
       list_of_bugs[[length(list_of_bugs) + 1]] = mat_random_lognormal_bugs[["mat_basis"]]
-      lsMicrobiomeKeys[[length(lsMicrobiomeKeys)+1]] = paste(c_strBugBugAssociations,c_strNull,"d",iDataset,sep="_")
+      lsMicrobiomeKeys[[length(lsMicrobiomeKeys)+1]] = paste(c_strBugBugAssociations,"a",iNumAssociations,"d",iDataset,sep="_")
       hist(as.vector(mat_random_lognormal_bugs[["mat_basis"]]), main="Final: Basis log normal matrix")
       dev.off()
 
-      if(iNumAssociations > 0)  # Only add associations if associations are requested
-      {
-        pdf(file.path(dirname(strCountFileName), paste("BugBugSpikeIn_d_", iDataset,sep="")), useDingbats=FALSE)
-        mat_random_lognormal_bugbug_spikes = func_generate_bug_bug_spikes( mtrxData            = mat_random_lognormal_bugs[["mat_basis"]],
-                                                                           vdVarScale          = vdVarScale,
-                                                                           funcAssociation     = funcAssociation,
-                                                                           lAssociationParams  = lAssociationParams,
-                                                                           viIdxCorrRangeBugs  = viIdxCorrRangeBugs,
-                                                                           liIdxCorrDomainBugs = liIdxCorrDomainBugs,
-                                                                           iMaxDomainNumber    = iMaxNumberCorrDomainBugs,
-                                                                           vdPercentZero       = vdPercentZero,
-                                                                           fZeroInflate        = TRUE,
-                                                                           fVerbose            = fVerbose )
-        mat_random_lognormal_bugbug_spikes_bugs = mat_random_lognormal_bugbug_spikes[["mat_bugs"]]
-
-        if( !fAddedParameters ){
-          vParametersAssociations = c( vParametersAssociations,
-                                       mat_random_lognormal_bugbug_spikes[["mtrxAssnParameters"]],
-                                       paste(c_strNumberDatasets,iNumberDatasets) )
-          fAddedParameters = TRUE
-        }
-        list_of_bugs[[length(list_of_bugs)+1]] = mat_random_lognormal_bugbug_spikes_bugs
-        lsMicrobiomeKeys[[length(lsMicrobiomeKeys)+1]] = paste(c_strBugBugAssociations,"a",iNumAssociations,"d",iDataset,sep="_")
-
-        hist(as.vector(mat_random_lognormal_bugbug_spikes_bugs), main=paste("Final: Bug-Bug Spiked matrix d=",iDataset,sep=""))
-        dev.off()
-
-      } else if(!fAddBasisParameters){   # Run just to get truth file parameters for the null matrices
-
-        pdf(file.path(dirname(strCountFileName), "BugBugSpikeIn"), useDingbats=FALSE)
-        mat_random_lognormal_bugbug_spikes = func_generate_bug_bug_spikes( mtrxData            = mat_random_lognormal_bugs[["mat_basis"]],
-                                                                           vdVarScale          = vdVarScale,
-                                                                           funcAssociation     = funcAssociation,
-                                                                           lAssociationParams  = lAssociationParams,
-                                                                           viIdxCorrRangeBugs  = NULL,
-                                                                           liIdxCorrDomainBugs = NULL,
-                                                                           iMaxDomainNumber    = iMaxNumberCorrDomainBugs,
-                                                                           vdPercentZero       = vdPercentZero,
-                                                                           fZeroInflate        = TRUE,
-                                                                           fVerbose            = fVerbose )
-        mat_random_lognormal_bugbug_spikes_bugs = mat_random_lognormal_bugbug_spikes[["mat_bugs"]]
-
-        if( !fAddedParameters ){
-          vParametersAssociations = c( vParametersAssociations,
-                                       mat_random_lognormal_bugbug_spikes[["mtrxAssnParameters"]],
-                                       paste(c_strNumberDatasets,iNumberDatasets) )
-          fAddedParameters = TRUE
-        }
-        list_of_bugs[[length(list_of_bugs)+1]] = mat_random_lognormal_bugbug_spikes_bugs
-        lsMicrobiomeKeys[[length(lsMicrobiomeKeys)+1]] = paste(c_strBugBugAssociations,"a",iNumAssociations,"d",iDataset,sep="_")
-
-        hist(as.vector(mat_random_lognormal_bugbug_spikes_bugs), main=paste("Final: Bug-Bug Spiked matrix d=",iDataset,sep=""))
-        dev.off()
-
-        fAddBasisParameters = TRUE
-      }
     }
   }
 
@@ -611,18 +554,16 @@ if( identical( environment( ), globalenv( ) ) &&
 	strNormalizedFileName,
 	strCountFileName,
 	parameter_filename,
-	lxArgs$options$variance_scale,
 	lxArgs$options$bugs_to_spike,
 	lxArgs$options$calibrate,
 	lxArgs$options$datasetCount,
 	lxArgs$options$read_depth,
 	lxArgs$options$number_features,
-	lxArgs$options$bugBugCoef,
+	lxArgs$options$bugBugCorr,
 	lxArgs$options$spikeCount,
 	lxArgs$options$lefse_file,
 	lxArgs$options$percent_spiked,
 	lxArgs$options$minLevelPercent,
-	lxArgs$options$max_domain_bugs,
 	lxArgs$options$number_samples, 
 	lxArgs$options$max_percent_outliers,
 	lxArgs$options$number_metadata,
