@@ -24,7 +24,7 @@ option_default = list(
     datasetCount = 1,
     read_depth = 8030,
     number_features = 300,
-    bugBugCorr = NULL,
+    bugBugCorr = "0.5",
     spikeCount = "1",
     lefse_file = NULL,
     percent_spiked = 0.03,
@@ -79,7 +79,7 @@ option_list = list(
       make_option(
           c("-g","--bugBugCorr"),
           type="character",
-          default = option_default[['bugBugCoef']],
+          default = option_default[['bugBugCorr']],
           help = paste(
               "A vector of string separated values for the correlation ",
               "values of the pairwise bug-bug associations. This ",
