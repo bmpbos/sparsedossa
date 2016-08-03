@@ -205,7 +205,7 @@ sparseDOSSA = function(
       vdMu = lsFit[["mu"]]
       vdSD = lsFit[["sd"]]
       vdPercentZero = lsFit[["percentZero"]]
-      iReadDepth = lsFit[["dAverageReadDepth"]]
+      #iReadDepth = lsFit[["dAverageReadDepth"]]
       int_number_features = lsFit[["iFeatureCount"]]
     }
     print("Parameters AFTER Calibration File (if no calibration file is used, defaults are shown)")
