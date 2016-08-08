@@ -109,6 +109,54 @@ func_get_log_corr_mat_from_num <- function(num_features, num_spikes,
   print("end func_get_corr_mat_from_num")
 }
 
+#' Get the log-basis correlation matrix from a file
+#'
+#' @inheritParams func_generate_spike_structure
+#' @param file_name The name of the file where the correlation values are
+#'   stored. Should have fields `Domain`, `Range`, and `Correlation`.
+func_get_log_corr_mat_from_file <- function(num_features, file_name){
+  print("start func_get_corr_mat_from_file")
+  corr_data <- read.table(file_name, stringsAsFactors=FALSE)
+
+  domain_features <- as.numeric(corr_data$Domain)
+  range_features  <- as.numeric(corr_data$Range)
+  log_corr_values <- as.numeric(corr_data$Corrleation)
+  log_corr_mat <- func_generate_spike_structure(
+      range_features=range_features,
+      domain_features=domain_features,
+      num_features=num_features,
+      log_corr_values=log_corr_values
+      )
+
+  range_vec <- unique(range_features)
+  ss <- lapply(range_vec, function(r){
+      list(domain=domain_features[range_features==r],
+           range=r,
+           log_corr_values=log_corr_values[range_features==r])
+  })
+  domain_features_list <- lapply(ss, '[[', 'domain')
+  log_corr_values_list <- lapply(ss, '[[', "log_corr_values")
+    
+  num_domain_features_str <-
+      func_list_to_str(lapply(domain_features_list, length))
+  range_features_str <- paste(range_vec, collapse="; ")
+  domain_features_str <- func_list_to_str(domain_features_list)
+  assoc_dir_str <- func_list_to_str(lapply(log_corr_values_list, sign))
+  log_corr_values_str <- func_list_to_str(log_corr_values_list)
+  
+  to_return <- list(mdLogCorr=log_corr_mat, RangeBugs=range_features,
+                    DomainBugs=domain_features)
+
+  param_list <- list(strNumberCorrDomainBugs=num_domain_features_str,
+                     strIdxCorrRangeBugs=range_features_str,
+                     strIdxCorrDomainBugs=domain_features_str,
+                     strDirAssociations=assoc_dir_str,
+                     strLogCorrValues=log_corr_values_str)
+
+  return(c(to_return, param_list))
+  print("end func_get_corr_mat_from_file")
+}
+
 #' Convert a list of vectors into an appropriately-delimited single string
 #'
 #' @param mylist A list of vectors

@@ -49,6 +49,7 @@ sparseDOSSA = function(
 		strCountFileName = option_default[['strCountFileName']],
 		parameter_filename = option_default[['parameter_filename']],
 		bugs_to_spike = option_default[['bugs_to_spike']],
+                spikeFile = option_default[['spikeFile']],
 		calibrate = option_default[['calibrate']],
 		datasetCount = option_default[['datasetCount']],
 		read_depth = option_default[['read_depth']],
@@ -153,6 +154,17 @@ sparseDOSSA = function(
       }
   } else {
       vecBugBugCorr <- 0
+  }
+
+  strSpikeFile <- spikeFile
+  if (is.null(strSpikeFile) && iNumAssociations == 0){
+      warning(paste0("number of associations = 0, and no spike file ",
+                     "specified; no bug-bug spike-ins will be done."))
+  }
+  if (!is.null(strSpikeFile) && iNumAssociations > 0){
+      warning(paste0("number of associations > 0 but spike file ",
+                     "specified; bug-bug spike-ins will be done according ",
+                     "to spike file."))
   }
 
   
@@ -406,9 +418,16 @@ sparseDOSSA = function(
 
 
     # Get the indices for the associations
-    lsAssociations = func_get_log_corr_mat_from_num(
-        num_features = int_number_features,
-        num_spikes=iNumAssociations, log_corr_values=v_log_corr_values)
+    if (is.null(strSpikeFile)){
+        lsAssociations = func_get_log_corr_mat_from_num(
+            num_features = int_number_features,
+            num_spikes=iNumAssociations, log_corr_values=v_log_corr_values)
+    } else {
+        lsAssociations = func_get_log_corr_mat_from_file(
+            num_features = int_number_features,
+            file_name = strSpikeFile
+            )
+    }
 
     # Flag to add the parameters only once, since the datasets are iid                                              
     fAddedParameters    = FALSE
@@ -560,6 +579,7 @@ if( identical( environment( ), globalenv( ) ) &&
 	strCountFileName,
 	parameter_filename,
 	lxArgs$options$bugs_to_spike,
+        lxArgs$options$spikeFile,
 	lxArgs$options$calibrate,
 	lxArgs$options$datasetCount,
 	lxArgs$options$read_depth,

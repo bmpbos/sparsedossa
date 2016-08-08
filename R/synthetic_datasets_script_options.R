@@ -41,6 +41,7 @@ option_default = list(
     minSample = 0,
     scalePercentZeros = 1,
     association_type = "linear",
+    spikeFile = NULL,
     noZeroInflate = FALSE,
     noRunMetadata = FALSE,
     runBugBug = FALSE)
@@ -260,5 +261,15 @@ option_list = list(
               "This is a flag, it is either included or not included in the commandline, no value needed.",
               sep = ". "
               )
+          ),
+      make_option(
+          c("--spikeFile"),
+          type="character",
+          default = option_default[["spikeFile"]],
+          help=paste0("If specified, a file that delineates all the ",
+              "pairwise correlations and correlated feature pairs. The ",
+              "file must have columns `Domain`, `Range`, and ",
+              "`Correlations`. This option overrides `bugs_to_spike` and ",
+              "`bugbugCorr`.")
           )
     )
