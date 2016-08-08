@@ -10,4 +10,5 @@ Description: Generate Sparse Data Observations to Simulate Synthetic Abundance
 License: MIT + file LICENSE
 VignetteBuilder: knitr
 Suggests: knitr, BiocStyle, BiocGenerics
+Imports: tmvtnorm (>= 1.4.10)
 biocViews: Statistics, Metagenomics, Bioinformatics, Software

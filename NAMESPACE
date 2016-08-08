@@ -1,1 +1,2 @@
 export(sparseDOSSA)
+importFrom(tmvtnorm, rtmvnorm)
