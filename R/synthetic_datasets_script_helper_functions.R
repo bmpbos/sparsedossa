@@ -1928,18 +1928,17 @@ viThreshold = NA
       stop("vdLogMean and vdLogSD must have equal length")
   }
   # Get truncated normal distribution with rows=samples, cols=features
-  mdFeature = matrix(NA, nrow=iNumberMeasurements, ncol=length(vdLogSD))
   mdLogSD = diag(x=vdLogSD, nrow=length(vdLogSD))
   mdLogVar = mdLogSD %*% mdLogCorr %*% mdLogSD
-  for( i in 1:iNumberMeasurements ){
-    vdFeature = as.vector(exp(mvtnorm::rmvnorm(1, vdLogMean, mdLogVar)))
-#    dFeature = rlnorm( 1, dLogMean, dLogSD )
-    while( any(vdFeature > viThreshold) ){
-      vdFeature = as.vector(exp(mvtnorm::rmvnorm( 1, vdLogMean, mdLogVar )))
-    }
-    mdFeature[i, ] = vdFeature
-    #vdFeature = c( vdFeature, dFeature )
+  if (length(viThreshold) == 1 && is.na(viThreshold)){
+      viThreshold <- rep(Inf, length(vdLogSD))
   }
+  mdFeature <- exp(tmvtnorm::rtmvnorm(n=iNumberMeasurements,
+                                      mean = vdLogMean,
+                                      sigma = mdLogVar,
+                                      upper = log(viThreshold),
+                                      algorithm="gibbs"))
+    
 #  if (ncol(mdFeature)==1) return(as.vector(mdFeature))
   #vdFeature = rlnorm( iNumberMeasurements, dLogMean, dLogSD )
 
