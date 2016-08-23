@@ -82,6 +82,7 @@ func_get_log_corr_mat_from_num <- function(num_features, num_spikes,
     domain_features_list <- lapply(ss, '[[', 'domain')
     log_corr_values_list <- lapply(ss, '[[', "log_corr_values")
     
+    num_associations_str <- as.character(num_spikes)
     num_domain_features_str <-
         func_list_to_str(lapply(domain_features_list, length))
     range_features_str <- paste(range_vec, collapse="; ")
@@ -93,13 +94,15 @@ func_get_log_corr_mat_from_num <- function(num_features, num_spikes,
                       DomainBugs=domain_features)
   } else {
     to_return <- list(mdLogCorr=diag(num_features))
+    num_associations_str <- "0"
     num_domain_features_str <- "NA"
     range_features_str <- "NA"
     domain_features_str <- "NA"
     assoc_dir_str <- "NA"
     log_corr_values_str <- "NA"
   }
-  param_list <- list(strNumberCorrDomainBugs=num_domain_features_str,
+  param_list <- list(strNumberOfAssociations=num_associations_str,
+                     strNumberCorrDomainBugs=num_domain_features_str,
                      strIdxCorrRangeBugs=range_features_str,
                      strIdxCorrDomainBugs=domain_features_str,
                      strDirAssociations=assoc_dir_str,
@@ -116,11 +119,11 @@ func_get_log_corr_mat_from_num <- function(num_features, num_spikes,
 #'   stored. Should have fields `Domain`, `Range`, and `Correlation`.
 func_get_log_corr_mat_from_file <- function(num_features, file_name){
   print("start func_get_corr_mat_from_file")
-  corr_data <- read.table(file_name, stringsAsFactors=FALSE)
+  corr_data <- read.table(file_name, stringsAsFactors=FALSE, header=TRUE)
 
   domain_features <- as.numeric(corr_data$Domain)
   range_features  <- as.numeric(corr_data$Range)
-  log_corr_values <- as.numeric(corr_data$Corrleation)
+  log_corr_values <- as.numeric(corr_data$Correlation)
   log_corr_mat <- func_generate_spike_structure(
       range_features=range_features,
       domain_features=domain_features,
@@ -147,7 +150,8 @@ func_get_log_corr_mat_from_file <- function(num_features, file_name){
   to_return <- list(mdLogCorr=log_corr_mat, RangeBugs=range_features,
                     DomainBugs=domain_features)
 
-  param_list <- list(strNumberCorrDomainBugs=num_domain_features_str,
+  param_list <- list(strNumberOfAssociations=as.character(nrow(corr_data)),
+                     strNumberCorrDomainBugs=num_domain_features_str,
                      strIdxCorrRangeBugs=range_features_str,
                      strIdxCorrDomainBugs=domain_features_str,
                      strDirAssociations=assoc_dir_str,
