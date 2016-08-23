@@ -469,8 +469,9 @@ sparseDOSSA = function(
                                      int_number_features)
         parameter_mat[3,1]  <- paste(c_strNumberOfSamples,
                                      int_number_samples)
-        parameter_mat[4,1]  <- paste(c_strNumberOfAssociations,
-                                     iNumAssociations )
+        parameter_mat[4,1]  <-
+            paste(c_strNumberOfAssociations,
+                  lsAssociations[["strNumberOfAssociations"]] )
         parameter_mat[5,1]  <-
             paste(c_strCorrDomainBugs,
                   lsAssociations[["strNumberCorrDomainBugs"]])
