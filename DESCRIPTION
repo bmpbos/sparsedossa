@@ -1,7 +1,7 @@
 Package: sparseDOSSA
 Type: Package
 Title: Sparse Data Observations for Simulating Synthetic Abundance
-Version: 1.0
+Version: 1.1.0
 Imports: optparse
 Date: 2015-02-27
 Author: Timothy Tickle<ttickle@hsph.harvard.edu>, Curtis Huttenhower <chuttenh@hsph.harvard.edu>
