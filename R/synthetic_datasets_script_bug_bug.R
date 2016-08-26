@@ -47,9 +47,9 @@ func_get_log_corr_mat_from_num <- function(num_features, num_spikes,
   print("start func_get_corr_mat_from_num")
   if (length(log_corr_values) == 1){
       log_corr_values <- rep(log_corr_values, num_spikes)
-  } else if (length(log_corr_values) > num_features){
+  } else if (length(log_corr_values) > num_spikes){
       log_corr_values <- sample(log_corr_values, num_spikes)
-  } else if (length(log_corr_values) < num_features){
+  } else if (length(log_corr_values) < num_spikes){
       log_corr_values_rep <- rep(log_corr_values,
                              ceiling(num_spikes / length(log_corr_values)))
       log_corr_values <- log_corr_values_rep[1:num_spikes]
