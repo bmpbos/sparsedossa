@@ -96,7 +96,7 @@ Here is a basic example of simulating dataset with 150 features (OTUs), 180 samp
 $ synthetic_datasets_script.R -f 150 -n 180 -p 10
 ```
 
-The data for the resulting community can be downloaded [here](https://www.dropbox.com/s/aj8dmxd2oq2dms2/third_example.pcl?dl=0) very similar to the original PRISM dataset. We plotted the distribution of rank abundances and a PCoA plot with simulated data and template data to illustrate this:
+The data for the resulting community can be downloaded [here](https://www.dropbox.com/s/aj8dmxd2oq2dms2/third_example.pcl?dl=0). We can find the simulated community is very similar to the original PRISM dataset. We plotted the distribution of rank abundances and a PCoA plot with simulated data and template data to illustrate this:
 
 ![Figure2.jpg](https://bitbucket.org/repo/89po5a/images/3450964988-Figure2.jpg)
 
