@@ -22,7 +22,7 @@ SparseDOSSA requires *R 3.0.2* or higher with [*optparse*](https://cran.r-projec
 
 ##**Installation**##
 
-SparseDOSSA can be obtained by either [Download SparseDOSSA](https://bitbucket.org/biobakery/sparsedossa/get/default.zip)
+SparseDOSSA can be obtained by either [installing from Bioconductor](https://bitbucket.org/biobakery/sparsedossa/get/default.zip)
 
 **OR**
 
@@ -96,7 +96,7 @@ Here is a basic example of simulating dataset with 150 features (OTUs), 180 samp
 $ synthetic_datasets_script.R -f 150 -n 180 -p 10
 ```
 
-The resulting community is very similar to the original PRISM dataset. We plotted the distribution of rank abundances and a PCoA plot with simulated data and template data to illustrate this:
+The data for the resulting community can be downloaded [here](https://www.dropbox.com/s/aj8dmxd2oq2dms2/third_example.pcl?dl=0) very similar to the original PRISM dataset. We plotted the distribution of rank abundances and a PCoA plot with simulated data and template data to illustrate this:
 
 ![Figure2.jpg](https://bitbucket.org/repo/89po5a/images/3450964988-Figure2.jpg)
 
@@ -107,11 +107,11 @@ If we want to add feature-metadata correlation, with 2% of the features spiked a
 $ synthetic_datasets_script.R -f 150 -n 180 -i 2 -k 0.02 -p 10
 ```
 
-As an example, we visualize the spiked dataset with a binary metadatum and a continuous metadatum:
+The result of this run can be found [here](https://www.dropbox.com/s/l2lncawr7cwlqnc/second_example.pcl?dl=0). As an example, we visualize the spiked dataset with a binary metadatum and a continuous metadatum:
 
 ![Figure3.jpg](https://bitbucket.org/repo/89po5a/images/1496043776-Figure3.jpg)
 
-You can also simulate dataset with feature-feature correlation only. Assume each spiked feature is correlated with two other randomly selected features and 10 of the features are spiked:
+You can also simulate dataset with feature-feature correlation only. Assume each spiked feature is correlated with two other randomly selected features and 10 of the features are spiked (see [here](https://www.dropbox.com/s/r36pws7udpamwqp/third_example.pcl?dl=0) for the result):
 
 ```
 #!cmd
@@ -125,7 +125,7 @@ As an final example to show sparseDOSSA can replicate results in previous litera
 $ synthetic_datasets_script.R -c mice.txt -m 1 -p 10
 ```
 
-We performed the same analyses as in Paulson et al and the results are shown below. We can see the results are very similar to those findings in the original paper.
+The simulation result can be downloaded [here](https://www.dropbox.com/s/woq8382qh00fqol/mouse_sim.pcl?dl=0). We performed the same analyses as in Paulson et al and the results are shown below. We can see the results are very similar to those findings in the original paper.
 
 ![Figure5.jpg](https://bitbucket.org/repo/89po5a/images/2810618475-Figure5.jpg)
 
