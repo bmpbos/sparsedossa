@@ -250,12 +250,6 @@ sparseDOSSA = function(
                                                                        dBetaGrandSD        = c_dBetaGrandSD, 
                                                                        fVerbose            = fVerbose )
 
-    lefse_lognormal = NULL
-    if(!is.null(lefse_file))
-    {
-      lefse_file = dirname(lefse_file)
-      lefse_lognormal = func_generate_lefse_matrices(lefse_file, metadata_parameters, int_number_features, int_number_samples, mat_metadata, mat_random_lognormal_bugs[['mat_bugs']], 'lognormal')
-    }
 
     vParametersAssociations = c(vParametersAssociations,mat_random_lognormal_bugs[["mtrxParameters"]])
     list_of_bugs[[length(list_of_bugs) + 1]] = mat_random_lognormal_bugs[["mat_bugs"]]
@@ -270,11 +264,6 @@ sparseDOSSA = function(
                                                                                        dPercentSamples     = dPercentOutlierSpikins,
                                                                                        mtrxBugs            = mat_random_lognormal_bugs[["mat_bugs"]],
                                                                                        fVerbose            = fVerbose )
-    lefse_outliers = NULL
-    if(!is.null(lefse_file))
-    {
-      lefse_outliers = func_generate_lefse_matrices(lefse_file, metadata_parameters,int_number_features,int_number_samples,mat_metadata, mat_random_lognormal_outliers_bugs[['mat_bugs']], 'outliers')
-    }
     vParametersAssociations = c(vParametersAssociations,mat_random_lognormal_outliers_bugs[["mtrxParameters"]])
     list_of_bugs[[length(list_of_bugs) + 1]] = mat_random_lognormal_outliers_bugs[["mat_bugs"]]
     hist(as.vector(mat_random_lognormal_outliers_bugs[["mat_bugs"]]), main="Final: Log normal matrix with outliers")
@@ -330,16 +319,6 @@ sparseDOSSA = function(
       lliData[[ sKey ]] = mat_random_lognormal_multivariate_spikes[["DataIndices"]]
       llsLevels[[ sKey ]] = mat_random_lognormal_multivariate_spikes[["Levels"]]
 
-      if(!is.null(lefse_file))
-      {
-        lefse_spike = func_generate_lefse_matrices( lefse_file, 
-                                                    metadata_parameters, 
-                                                    int_number_features, 
-                                                    int_number_samples,
-                                                    mat_metadata, 
-                                                    mat_random_lognormal_multivariate_spikes_bugs, 
-                                                    paste('multivariate_n_', iSpikeCount, '_m_', mult,sep=""))
-      }
       # generate known associations for random lognormal with spikes
       vParametersAssociations = c( vParametersAssociations, mat_random_lognormal_multivariate_spikes[["m_parameter_rec"]])
       list_of_bugs[[length(list_of_bugs)+1]] = mat_random_lognormal_multivariate_spikes_bugs
