@@ -1,1 +1,1 @@
-vignettes/sparsedossa-vignett.md
+vignettes/sparsedossa-vignette.md
