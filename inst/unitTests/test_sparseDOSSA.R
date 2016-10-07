@@ -18,7 +18,6 @@ sparseDOSSA (
 	spikeCount = "1",
 	percent_spiked = 0.03,
 	minLevelPercent =  0.1,
-	max_domain_bugs = 2,
 	number_samples = 50, 
 	max_percent_outliers = 0.05,
 	number_metadata = 5,
@@ -31,8 +30,7 @@ sparseDOSSA (
 	association_type =  "linear",
 	noZeroInflate =  FALSE,
 	noRunMetadata = FALSE,
-	runBugBug =  FALSE,
-	help =  FALSE
+	runBugBug =  FALSE
 )
 
 sparsedossa_results <- read.csv("SyntheticMicrobiome.pcl", row.names=1, header=TRUE,sep="\t")
