@@ -9,13 +9,12 @@ setwd("..")
 expected_sparsedossa_results <- read.csv("tests/expected_SyntheticMicrobiome.pcl",  row.names=1,header=TRUE,sep="\t")
 
 sparseDOSSA (
-	variance_scale = 1,
 	bugs_to_spike = 0,
 	calibrate = NA,
 	datasetCount = 1,
 	read_depth = 8030,
 	number_features = 300,
-	bugBugCoef =  "0,0.5",
+	bugBugCorr =  "0.5",
 	spikeCount = "1",
 	percent_spiked = 0.03,
 	minLevelPercent =  0.1,
@@ -29,7 +28,6 @@ sparseDOSSA (
 	minOccurence =  0,
 	verbose =  TRUE,
 	minSample =  0,
-	scalePercentZeros = 1,
 	association_type =  "linear",
 	noZeroInflate =  FALSE,
 	noRunMetadata = FALSE,

@@ -474,11 +474,10 @@ fVerbose = FALSE
 
     # Remember this is a vector of expectation not of log mu parameters.
     print( paste( "LogMu", lsParams$dLogMu, "LogSD", lsParams$dLogSD, "Threshold",(c_iTimesSDIsOutlier*exp(lsParams$dLogSD))+exp(lsParams$dLogMu)))
-    vdExp = funcTruncatedRLNorm(iNumberMeasurements=int_number_features,
-        dLogMean=lsParams$dLogMu,
-        dLogSD=lsParams$dLogSD,
-        iThreshold=( c_iTimesSDIsOutlier*exp( lsParams$dLogSD ) ) + exp( lsParams$dLogMu ) )
-
+    vdExp = funcTruncatedRLNorm( iNumberMeasurements=int_number_features,
+        vdLogMean=lsParams$dLogMu,
+        vdLogSD=lsParams$dLogSD,
+        viThreshold=( c_iTimesSDIsOutlier*exp( lsParams$dLogSD ) ) + exp( lsParams$dLogMu ) )
     ### Update the distribution to the sum (read depth) requested.
     ### Depending on how many features are requested this is more or less needed
     ### This is not needed at the limit with many features.
@@ -2100,7 +2099,7 @@ viThreshold = NA
   
   if( any(colSums( mdFeature ) == 0 ) ){
     zero_cols <- which( colSums( mdFeature ) == 0 )
-    one_rows  <- sample( ncol(mdFeature), length(zero_cols) )
+    one_rows  <- sample( nrow(mdFeature), length(zero_cols) )
     for ( k in seq_along( zero_cols ) ){
         mdFeature[one_rows[k], zero_cols[k]] = 1
     }
