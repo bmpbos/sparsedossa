@@ -1,8 +1,7 @@
 Package: sparseDOSSA
 Type: Package
 Title: Sparse Data Observations for Simulating Synthetic Abundance
-Version: 1.1.0
-Imports: optparse
+Version: 1.0.1
 Date: 2015-02-27
 Author: Timothy Tickle<ttickle@hsph.harvard.edu>, Curtis Huttenhower <chuttenh@hsph.harvard.edu>
 Maintainer:  Boyu Ren<bor158@mail.harvard.edu>, Emma Schwager <emma.schwager@gmail.com>, George Weingart<george.weingart@gmail.com>  
@@ -10,5 +9,5 @@ Description: Generate Sparse Data Observations to Simulate Synthetic Abundance
 License: MIT + file LICENSE
 VignetteBuilder: knitr
 Suggests: knitr, BiocStyle, BiocGenerics
-Imports: tmvtnorm (>= 1.4.10)
+Imports: optparse, tmvtnorm (>= 1.4.10)
 biocViews: Statistics, Metagenomics, Bioinformatics, Software
