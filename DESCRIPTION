@@ -1,13 +1,13 @@
 Package: sparseDOSSA
 Type: Package
 Title: Sparse Data Observations for Simulating Synthetic Abundance
-Version: 1.0.1
+Version: 0.99.0
 Date: 2015-02-27
 Author: Timothy Tickle<ttickle@hsph.harvard.edu>, Curtis Huttenhower
     <chuttenh@hsph.harvard.edu>
 Maintainer: Boyu Ren<bor158@mail.harvard.edu>, Emma Schwager
     <emma.schwager@gmail.com>, George Weingart<george.weingart@gmail.com>
-Description: Generate Sparse Data Observations to Simulate Synthetic Abundance
+Description: The package is to provdie a model based way to generate sparse data observations to simulate synthetic microbial abundance.
 License: MIT + file LICENSE
 VignetteBuilder: knitr
 Suggests:
