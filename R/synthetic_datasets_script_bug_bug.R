@@ -114,7 +114,7 @@ func_get_log_corr_mat_from_num <- function(num_features, num_spikes,
 
 #' Get the log-basis correlation matrix from a file
 #'
-#' @inheritParams func_generate_spike_structure
+#' @inheritParams func_get_log_corr_mat_from_num
 #' @param file_name The name of the file where the correlation values are
 #'   stored. Should have fields `Domain`, `Range`, and `Correlation`.
 func_get_log_corr_mat_from_file <- function(num_features, file_name){
@@ -175,7 +175,7 @@ func_list_to_str <- function(mylist){
 #'   spiked data
 #' @param domain_features A vector which contains the features that will be
 #'   used to generate the spiked data
-#' @inheritParams func_generate_spike_structure_from_num
+#' @inheritParams func_get_log_corr_mat_from_num
 #' 
 func_generate_spike_structure <- function(range_features, domain_features,
                                           num_features,
